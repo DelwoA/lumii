@@ -54,7 +54,7 @@ export async function chatReply(opts: {
     });
     messages.push({
       role: "assistant",
-      content: "Got it — I've reviewed the material. What would you like help with?",
+      content: "Got it. I've reviewed the material. What would you like help with?",
     });
   }
   for (const m of opts.history.slice(-MAX_HISTORY)) {

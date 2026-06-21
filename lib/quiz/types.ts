@@ -1,6 +1,6 @@
 /** Shared quiz types (kept out of the "use server" action file). */
 
-/** A question as sent to the client — no answer key. */
+/** A question as sent to the client (no answer key). */
 export type QuizQuestionPublic = {
   id: number;
   question: string;

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "LUMII — Your AI study companion",
+    default: "LUMII · Your AI study companion",
     template: "%s · LUMII",
   },
   description:

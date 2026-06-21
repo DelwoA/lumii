@@ -8,14 +8,15 @@ const SUMMARY_SYSTEM = `You are an expert study assistant. Produce a clear, well
 
 Use this structure:
 - A short one-paragraph overview.
-- "## Key concepts" — concise bullet points.
-- "## Key terms" — a bullet list of "term — short definition".
-- "## Likely exam focus" — a few bullets on what to prioritise.
+- "## Key concepts": concise bullet points.
+- "## Key terms": a bullet list where each item is "term: short definition".
+- "## Likely exam focus": a few bullets on what to prioritise.
 
 Rules:
 - Be faithful to the material; never invent facts not present in it.
 - If the material is unclear or incomplete, say so briefly and use hedging language ("appears to", "likely").
-- Keep it tight and skimmable. Do NOT add a preamble like "Here is the summary".`;
+- Keep it tight and skimmable. Do NOT add a preamble like "Here is the summary".
+- Do not use em dashes; prefer colons, commas, or shorter sentences.`;
 
 /**
  * Generate a revision-summary in Markdown from a material (multimodal PDF or

@@ -33,9 +33,9 @@ export function QuizResultPdf({
   graded: GradedQuestion[];
 }) {
   return (
-    <Document title={`Quiz result — ${title}`}>
+    <Document title={`Quiz result: ${title}`}>
       <Page size="A4" style={styles.page}>
-        <Text style={styles.brand}>LUMII — Quiz Result</Text>
+        <Text style={styles.brand}>LUMII Quiz Result</Text>
         <Text style={styles.sub}>{title}</Text>
         <Text style={styles.score}>
           Score: {correctCount} / {questionCount}

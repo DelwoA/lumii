@@ -99,7 +99,7 @@ export function MaterialUploadDialog({
                 name="title"
                 required
                 maxLength={120}
-                placeholder="e.g. Week 3 — Scheduling"
+                placeholder="e.g. Week 3: Scheduling"
               />
             </div>
             <div className="grid gap-2">

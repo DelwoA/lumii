@@ -66,7 +66,7 @@ export function ActiveSessionBar() {
       return;
     }
     if (res.scored) {
-      toast.success(`Session saved — quality ${res.qualityScore}/100`);
+      toast.success(`Session saved. Quality ${res.qualityScore}/100`);
     } else {
       toast.success("Session saved (too short to score)");
     }

@@ -104,7 +104,7 @@ export function QuizRunner({
       xpAwarded: res.xpAwarded,
     });
     setPhase("result");
-    if (res.xpAwarded > 0) toast.success(`Quiz complete — +${res.xpAwarded} XP`);
+    if (res.xpAwarded > 0) toast.success(`Quiz complete. +${res.xpAwarded} XP`);
   }
 
   async function onExportPdf() {
