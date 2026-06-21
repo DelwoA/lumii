@@ -19,6 +19,7 @@ import { formatDurationShort } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { TodayPlan } from "@/components/dashboard/today-plan";
+import { MoodCheckin } from "@/components/mood/mood-checkin";
 
 export const dynamic = "force-dynamic";
 
@@ -163,6 +164,8 @@ export default async function DashboardPage() {
           )}
         </Card>
       </div>
+
+      <MoodCheckin />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Link href="/timetable">
