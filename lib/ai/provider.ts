@@ -22,9 +22,9 @@ function openrouter(): OpenRouterProvider {
 }
 
 export const PRIMARY_MODEL_ID =
-  process.env.OPENROUTER_MODEL || "google/gemma-3-27b-it";
+  process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash";
 export const FALLBACK_MODEL_ID =
-  process.env.OPENROUTER_FALLBACK_MODEL || "google/gemini-2.5-flash";
+  process.env.OPENROUTER_FALLBACK_MODEL || "google/gemma-3-27b-it";
 
 export function primaryModel(): ChatModel {
   return openrouter().chat(PRIMARY_MODEL_ID);
@@ -51,7 +51,12 @@ export async function withModelFallback<T>(
 // --- Multimodal message content ---------------------------------------------
 
 type TextPart = { type: "text"; text: string };
-type FilePart = { type: "file"; data: Uint8Array; mediaType: string };
+type FilePart = {
+  type: "file";
+  data: string; // base64 (raw Uint8Array is not transmitted correctly by OpenRouter)
+  mediaType: string;
+  filename: string;
+};
 export type MaterialContent = (TextPart | FilePart)[];
 
 /**
@@ -71,8 +76,9 @@ export function materialUserContent(
   if (material.fileBytes && material.mimeType) {
     parts.push({
       type: "file",
-      data: material.fileBytes,
+      data: Buffer.from(material.fileBytes).toString("base64"),
       mediaType: material.mimeType,
+      filename: "material.pdf",
     });
   } else if (material.noteText) {
     parts.push({ type: "text", text: `\n\n--- MATERIAL ---\n${material.noteText}` });
