@@ -8,6 +8,9 @@ import {
   generateSummaryMarkdown,
   SUMMARY_GENERATION_VERSION,
 } from "@/lib/ai/summary";
+import { awardXp } from "@/lib/gamification/award";
+import { XP_RULES } from "@/lib/gamification/xp";
+import { bumpEngagement } from "@/lib/sessions/service";
 import type { ActionState } from "@/lib/forms";
 
 export async function generateSummary(materialId: string): Promise<ActionState> {
@@ -17,7 +20,7 @@ export async function generateSummary(materialId: string): Promise<ActionState> 
 
   try {
     const { markdown, modelId } = await generateSummaryMarkdown(loaded.content);
-    await prisma.summary.create({
+    const summary = await prisma.summary.create({
       data: {
         userId: user.id,
         materialId,
@@ -25,7 +28,19 @@ export async function generateSummary(materialId: string): Promise<ActionState> 
         modelId,
         generationVersion: SUMMARY_GENERATION_VERSION,
       },
+      select: { id: true },
     });
+    // Ledger event + a small XP award (idempotent on the summary row), and a
+    // best-effort engagement bump if a study session is currently running.
+    await awardXp({
+      userId: user.id,
+      type: "SUMMARY_GENERATED",
+      requestedXp: XP_RULES.SUMMARY_GENERATED,
+      idempotencyKey: `summary-generated:${summary.id}`,
+      sourceType: "summary",
+      sourceId: summary.id,
+    });
+    await bumpEngagement(user.id, "summariesViewed");
     revalidatePath(`/materials/${materialId}`);
     return { ok: true };
   } catch {

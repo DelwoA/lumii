@@ -4,6 +4,7 @@ import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { loadMaterialForAI } from "@/lib/materials/content";
 import { chatReply } from "@/lib/ai/tutor";
+import { bumpEngagement } from "@/lib/sessions/service";
 import type { ChatMessage } from "@/lib/ai/chat-types";
 
 export type ChatResult = { ok: true; reply: string } | { ok: false; error: string };
@@ -36,6 +37,7 @@ export async function chatAboutMaterial(
         context: summary.content,
         history: trimmed,
       });
+      await bumpEngagement(user.id, "tutorQuestions");
       return { ok: true, reply: text };
     }
 
@@ -49,6 +51,7 @@ export async function chatAboutMaterial(
       mimeType: context ? null : loaded.content.mimeType,
       history: trimmed,
     });
+    await bumpEngagement(user.id, "tutorQuestions");
     return { ok: true, reply: text };
   } catch {
     return { ok: false, error: "The tutor could not respond. Please try again." };

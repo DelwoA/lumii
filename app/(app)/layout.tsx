@@ -3,6 +3,7 @@ import { requireDbUser } from "@/lib/auth";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopbar } from "@/components/app-topbar";
+import { ActiveSessionBar } from "@/components/session/active-session-bar";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export default async function AppLayout({
         <AppSidebar />
         <SidebarInset>
           <AppTopbar />
+          <ActiveSessionBar />
           <main className="flex flex-1 flex-col">{children}</main>
         </SidebarInset>
       </SidebarProvider>

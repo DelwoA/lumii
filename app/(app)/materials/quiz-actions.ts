@@ -13,6 +13,7 @@ import {
 } from "@/lib/quiz/token";
 import { quizXp } from "@/lib/gamification/xp";
 import { awardXp } from "@/lib/gamification/award";
+import { bumpEngagement } from "@/lib/sessions/service";
 import type {
   QuizQuestionPublic,
   GradedQuestion,
@@ -108,6 +109,9 @@ export async function submitQuiz(input: {
     // Duplicate submission (idempotencyKey clash) -> no additional XP.
     xpAwarded = 0;
   }
+
+  // Best-effort engagement bump for any in-progress study session.
+  await bumpEngagement(user.id, "quizAttempts");
 
   const graded: GradedQuestion[] = input.questions.map((q, i) => ({
     id: q.id,

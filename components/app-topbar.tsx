@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { StartSessionButton } from "@/components/session/start-session-button";
 
 export function AppTopbar() {
   return (
@@ -11,6 +12,7 @@ export function AppTopbar() {
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       <div className="flex-1" />
+      <StartSessionButton />
       <ThemeToggle />
       <UserButton />
     </header>
