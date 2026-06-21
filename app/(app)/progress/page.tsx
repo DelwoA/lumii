@@ -1,12 +1,66 @@
-import { ComingSoon } from "@/components/coming-soon";
+import { BookOpen, Clock, Flame, Brain } from "lucide-react";
+import { requireDbUser } from "@/lib/auth";
+import { getProgressData } from "@/lib/progress/service";
+import { formatDurationShort } from "@/lib/format";
+import { Card } from "@/components/ui/card";
+import { ProgressCharts } from "@/components/progress/progress-charts";
+import { ActivityCalendar } from "@/components/progress/activity-calendar";
 
 export const dynamic = "force-dynamic";
 
-export default function ProgressPage() {
+export default async function ProgressPage() {
+  const user = await requireDbUser();
+  const data = await getProgressData(user.id, user.timezone || "UTC");
+
+  const stats = [
+    {
+      label: "Total study time",
+      value: formatDurationShort(data.totals.studySeconds),
+      icon: Clock,
+    },
+    {
+      label: "Sessions completed",
+      value: String(data.totals.sessions),
+      icon: BookOpen,
+    },
+    { label: "Quizzes taken", value: String(data.totals.quizzes), icon: Brain },
+    {
+      label: "Longest streak",
+      value: `${data.totals.longestStreak} ${data.totals.longestStreak === 1 ? "day" : "days"}`,
+      icon: Flame,
+    },
+  ];
+
   return (
-    <ComingSoon
-      title="Progress"
-      description="Charts for study minutes, adherence, XP growth, and your activity calendar."
-    />
+    <div className="flex flex-1 flex-col gap-6 p-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Progress</h1>
+        <p className="text-muted-foreground text-sm">
+          How your studying is trending over time.
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map((s) => (
+          <Card key={s.label} className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-sm">{s.label}</span>
+              <s.icon className="text-primary size-4" />
+            </div>
+            <p className="mt-2 text-2xl font-semibold tabular-nums">{s.value}</p>
+          </Card>
+        ))}
+      </div>
+
+      <ProgressCharts data={data} />
+
+      <Card className="p-5">
+        <h2 className="mb-1 font-medium">Study activity</h2>
+        <p className="text-muted-foreground mb-4 text-sm">
+          The last 12 weeks. Darker means more minutes studied that day.
+        </p>
+        <ActivityCalendar data={data.activityCalendar} />
+      </Card>
+    </div>
   );
 }
