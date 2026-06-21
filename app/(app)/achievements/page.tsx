@@ -1,37 +1,13 @@
-import {
-  Award,
-  BookOpen,
-  Brain,
-  Crown,
-  Flame,
-  Footprints,
-  Lock,
-  Repeat,
-  Sparkles,
-  Target,
-  Trophy,
-  type LucideIcon,
-} from "lucide-react";
+import { Crown, Flame, Lock, Trophy } from "lucide-react";
 import { requireDbUser } from "@/lib/auth";
 import { getAchievementsData } from "@/lib/gamification/service";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { TrophyIcon } from "@/components/trophy-icon";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-
-const ICONS: Record<string, LucideIcon> = {
-  Award,
-  BookOpen,
-  Brain,
-  Crown,
-  Flame,
-  Footprints,
-  Repeat,
-  Sparkles,
-  Target,
-};
 
 function titleCase(rank: string): string {
   return rank.charAt(0) + rank.slice(1).toLowerCase();
@@ -103,7 +79,6 @@ export default async function AchievementsPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {data.trophies.map((t) => {
-          const Icon = ICONS[t.icon] ?? Trophy;
           return (
             <Card
               key={t.code}
@@ -120,7 +95,11 @@ export default async function AchievementsPage() {
                     : "bg-muted text-muted-foreground",
                 )}
               >
-                {t.unlocked ? <Icon className="size-5" /> : <Lock className="size-4" />}
+                {t.unlocked ? (
+                  <TrophyIcon name={t.icon} className="size-5" />
+                ) : (
+                  <Lock className="size-4" />
+                )}
               </div>
               <div className="min-w-0">
                 <p className="font-medium">{t.name}</p>
