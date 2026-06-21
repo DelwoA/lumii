@@ -1,0 +1,12 @@
+# Never upload local env files or build/test artifacts to Vercel.
+# Production environment variables are configured in the Vercel project settings.
+.env
+.env.*
+!.env.example
+node_modules
+.next
+.git
+*.log
+playwright-report
+test-results
+coverage
