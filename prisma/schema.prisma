@@ -1,0 +1,324 @@
+// LUMII Prisma schema (v1). See .claude/plans/lucky-wishing-eich.md for rationale.
+// Conventions: every user-owned root carries userId + @@index; FKs indexed;
+// onDelete set explicitly. CHECK constraints + the one-open-session partial unique
+// index are added via a follow-up raw-SQL migration (Prisma cannot express them).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum MaterialType {
+  PDF
+  NOTE
+}
+
+enum MaterialStatus {
+  PENDING_UPLOAD
+  READY
+  FAILED
+}
+
+enum SessionStatus {
+  PLANNED
+  COMPLETED
+  MISSED
+  CANCELLED
+}
+
+enum MoodLabel {
+  MOTIVATED
+  NEUTRAL
+  TIRED
+  STRESSED
+  FRUSTRATED
+}
+
+enum Rank {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  DIAMOND
+}
+
+enum EventType {
+  SESSION_STARTED
+  SESSION_COMPLETED
+  SESSION_MISSED
+  QUIZ_COMPLETED
+  SUMMARY_GENERATED
+  TROPHY_UNLOCKED
+  RANK_UP
+  MOOD_LOGGED
+  ADHERENT_DAY
+  PERFECT_DAY
+}
+
+model User {
+  id          String   @id @default(cuid())
+  clerkId     String   @unique
+  email       String?
+  displayName String?
+  timezone    String   @default("UTC") // IANA tz for day boundaries
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subjects         Subject[]
+  topics           Topic[]
+  materials        Material[]
+  summaries        Summary[]
+  quizCompletions  QuizCompletion[]
+  scheduledSessions ScheduledSession[]
+  studySessions    StudySession[]
+  moodCheckins     MoodCheckin[]
+  gamification     GamificationProfile?
+  userTrophies     UserTrophy[]
+  activityEvents   ActivityEvent[]
+  publicProfile    PublicProfile?
+}
+
+model Subject {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  color      String?
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  topics            Topic[]
+  materials         Material[]
+  quizCompletions   QuizCompletion[]
+  scheduledSessions ScheduledSession[]
+
+  @@index([userId])
+}
+
+model Topic {
+  id         String    @id @default(cuid())
+  subjectId  String
+  subject    Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  materials         Material[]
+  quizCompletions   QuizCompletion[]
+  scheduledSessions ScheduledSession[]
+
+  @@index([subjectId])
+  @@index([userId])
+}
+
+model Material {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId    String?
+  subject      Subject?       @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  topicId      String?
+  topic        Topic?         @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  title        String
+  type         MaterialType
+  // File materials (PDF):
+  r2Key        String?
+  originalName String?
+  mimeType     String?
+  sizeBytes    Int?
+  checksum     String?
+  // Note materials:
+  noteText     String?        @db.Text
+  status       MaterialStatus @default(PENDING_UPLOAD)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  summaries       Summary[]
+  quizCompletions QuizCompletion[]
+
+  @@index([userId, createdAt])
+  @@index([subjectId])
+  @@index([topicId])
+}
+
+model Summary {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  materialId        String
+  material          Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  content           String   @db.Text // sanitized markdown
+  modelId           String
+  generationVersion String
+  createdAt         DateTime @default(now())
+
+  @@index([materialId])
+  @@index([userId])
+}
+
+model QuizCompletion {
+  // NON-CONTENT metadata only. Never store questions/answers/responses.
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId         String?
+  subject           Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  topicId           String?
+  topic             Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  materialId        String?
+  material          Material? @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  questionCount     Int
+  correctCount      Int
+  durationSec       Int
+  modelId           String
+  generationVersion String
+  idempotencyKey    String   @unique
+  completedAt       DateTime @default(now())
+
+  @@index([userId, completedAt])
+  @@index([topicId, completedAt])
+}
+
+model ScheduledSession {
+  id               String        @id @default(cuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId        String?
+  subject          Subject?      @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  topicId          String?
+  topic            Topic?        @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  title            String
+  plannedStart     DateTime
+  plannedEnd       DateTime
+  plannedLocalDate String // YYYY-MM-DD in planningTimezone
+  planningTimezone String // IANA
+  targetDurationSec Int
+  goal             String?
+  status           SessionStatus @default(PLANNED)
+  cancelledAt      DateTime?
+  createdAt        DateTime      @default(now())
+
+  studySession StudySession?
+
+  @@index([userId, status, plannedStart])
+  @@index([userId, plannedLocalDate])
+}
+
+model StudySession {
+  id                 String            @id @default(cuid())
+  userId             String
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheduledSessionId String?           @unique
+  scheduledSession   ScheduledSession? @relation(fields: [scheduledSessionId], references: [id], onDelete: SetNull)
+  startedAt          DateTime          @default(now())
+  endedAt            DateTime?
+  lastHeartbeatAt    DateTime?
+  targetDurationSec  Int?
+  actualDurationSec  Int?
+  goalCompleted      Boolean?
+  reflection         String?           @db.Text
+  qualityScore       Int?
+  qualityVersion     String?
+  autoClosed         Boolean           @default(false)
+  autoCloseReason    String?
+  // Server-confirmed in-session engagement counters (bounded when scored).
+  summariesViewed     Int @default(0)
+  tutorQuestions      Int @default(0)
+  quizAttempts        Int @default(0)
+  explanationsReviewed Int @default(0)
+  createdAt          DateTime @default(now())
+
+  moodCheckins MoodCheckin[]
+
+  @@index([userId, startedAt])
+}
+
+model MoodCheckin {
+  // PRIVATE. Label + classification only; NEVER raw text. Auto-expires.
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studySessionId  String?
+  studySession    StudySession? @relation(fields: [studySessionId], references: [id], onDelete: SetNull)
+  selfLabel       MoodLabel?
+  classifiedLabel MoodLabel?
+  expiresAt       DateTime
+  createdAt       DateTime      @default(now())
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+model GamificationProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalXp        Int      @default(0) // invariant: == SUM(ActivityEvent.xpDelta)
+  rank           Rank     @default(BRONZE)
+  currentStreak  Int      @default(0)
+  longestStreak  Int      @default(0)
+  lastAdherentDay String? // YYYY-MM-DD
+  updatedAt      DateTime @updatedAt
+}
+
+model Trophy {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String
+  description String
+  criteria    Json
+  icon        String
+  createdAt   DateTime     @default(now())
+  userTrophies UserTrophy[]
+}
+
+model UserTrophy {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trophyId   String
+  trophy     Trophy   @relation(fields: [trophyId], references: [id], onDelete: Restrict)
+  unlockedAt DateTime @default(now())
+
+  @@unique([userId, trophyId])
+  @@index([userId])
+}
+
+model ActivityEvent {
+  // The XP ledger + analytics source + future IoT trigger.
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           EventType
+  sourceType     String?
+  sourceId       String?
+  payload        Json? // non-sensitive only
+  xpDelta        Int       @default(0)
+  idempotencyKey String?   @unique
+  createdAt      DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, type, createdAt])
+}
+
+model PublicProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  handle      String   @unique // case-normalized (store lowercase)
+  isPublic    Boolean  @default(false)
+  displayName String
+  bio         String?  @db.Text
+  avatarUrl   String?
+  showRank    Boolean  @default(true)
+  showXp      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
