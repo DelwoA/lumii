@@ -5,6 +5,7 @@ import { presignDownload } from "@/lib/storage/r2";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { MaterialDeleteButton } from "@/components/materials/material-delete-button";
+import { MaterialAISection } from "@/components/materials/material-ai-section";
 
 export const dynamic = "force-dynamic";
 
@@ -24,9 +25,18 @@ export default async function MaterialDetailPage({
 
   const material = await prisma.material.findFirst({
     where: { id, userId: user.id },
-    include: { subject: { select: { name: true } } },
+    include: {
+      subject: { select: { name: true } },
+      summaries: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { content: true },
+      },
+    },
   });
   if (!material) notFound();
+
+  const latestSummary = material.summaries[0]?.content ?? null;
 
   const fileUrl =
     material.type === "PDF" && material.r2Key && material.status === "READY"
@@ -95,8 +105,11 @@ export default async function MaterialDetailPage({
         </Card>
       )}
 
-      <Card className="text-muted-foreground p-6 text-sm">
-        AI tools (Summary · Quiz · Chat) for this material are coming next.
+      <Card className="p-5">
+        <MaterialAISection
+          materialId={material.id}
+          summaryMarkdown={latestSummary}
+        />
       </Card>
     </div>
   );
