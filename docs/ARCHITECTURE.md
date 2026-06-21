@@ -31,13 +31,13 @@ Next.js (Vercel)
 - **Routes (`app/`)**: Server Components fetch data and render; Server Actions
   (`"use server"`) handle mutations. The only route handler is the Clerk webhook.
 - **Domain logic (`lib/`)**: framework-independent modules grouped by concern:
-  - `lib/ai` — provider isolation, summary, quiz, tutor, mood classifier.
-  - `lib/sessions` — session lifecycle and the pure timing math.
-  - `lib/gamification` — XP ledger, ranks, Session Quality, streak, trophies.
-  - `lib/timetable` — scheduled sessions and timezone-aware day boundaries.
-  - `lib/progress` — analytics aggregation.
-  - `lib/storage` — R2 access; `lib/quiz` — answer-key token; `lib/auth` — user
-    resolution; `lib/prisma` — the client singleton.
+  - `lib/ai`: provider isolation, summary, quiz, tutor, mood classifier.
+  - `lib/sessions`: session lifecycle and the pure timing math.
+  - `lib/gamification`: XP ledger, ranks, Session Quality, streak, trophies.
+  - `lib/timetable`: scheduled sessions and timezone-aware day boundaries.
+  - `lib/progress`: analytics aggregation.
+  - `lib/storage` (R2 access), `lib/quiz` (answer-key token), `lib/auth` (user
+    resolution), and `lib/prisma` (the client singleton).
 - **UI (`components/`)**: presentational and interactive components, with the
   shadcn/ui primitives under `components/ui`.
 
