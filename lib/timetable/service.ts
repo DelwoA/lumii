@@ -73,6 +73,20 @@ export async function listScheduled(
   return rows.map(toTimetable);
 }
 
+/** Non-cancelled sessions planned for a specific local date (for the dashboard). */
+export async function listForLocalDate(
+  userId: string,
+  localDate: string,
+): Promise<TimetableSession[]> {
+  await reconcileScheduled(userId);
+  const rows = await prisma.scheduledSession.findMany({
+    where: { userId, plannedLocalDate: localDate, status: { not: "CANCELLED" } },
+    orderBy: { plannedStart: "asc" },
+    include: ROW_INCLUDE,
+  });
+  return rows.map(toTimetable);
+}
+
 /** Verify any chosen subject/topic belong to the user (and topic to subject). */
 async function assertSubjectTopic(
   userId: string,
