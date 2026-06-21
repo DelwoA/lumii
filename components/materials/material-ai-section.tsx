@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/markdown";
 import { generateSummary } from "@/app/(app)/materials/ai";
 import { QuizRunner } from "@/components/materials/quiz-runner";
+import { MaterialChat } from "@/components/materials/material-chat";
 
 export function MaterialAISection({
   materialId,
@@ -85,9 +86,7 @@ export function MaterialAISection({
       </TabsContent>
 
       <TabsContent value="chat" className="mt-4">
-        <p className="text-muted-foreground py-6 text-center text-sm">
-          Chat about this material is coming next.
-        </p>
+        <MaterialChat materialId={materialId} />
       </TabsContent>
     </Tabs>
   );
