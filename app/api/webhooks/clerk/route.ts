@@ -2,6 +2,7 @@ import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { requireServerEnv } from "@/lib/env";
+import { deleteObjectsForUser } from "@/lib/storage/r2";
 
 type ClerkEmail = { id: string; email_address: string };
 type ClerkUserData = {
@@ -63,9 +64,17 @@ export async function POST(req: Request) {
         create: { clerkId: data.id, email, displayName },
       });
     } else if (type === "user.deleted" && data.id) {
-      // Idempotent. NOTE: R2 object cleanup is wired in the storage task; here
-      // we cascade-delete the DB rows.
-      await prisma.user.deleteMany({ where: { clerkId: data.id } });
+      // Idempotent deletion saga: remove the user's R2 objects FIRST, then the
+      // DB rows (cascade). If R2 deletion throws, we return non-2xx below so
+      // Svix retries and data is never left half-deleted.
+      const existing = await prisma.user.findUnique({
+        where: { clerkId: data.id },
+        select: { id: true },
+      });
+      if (existing) {
+        await deleteObjectsForUser(existing.id);
+        await prisma.user.delete({ where: { id: existing.id } });
+      }
     }
   } catch {
     // Non-2xx so Svix retries.
