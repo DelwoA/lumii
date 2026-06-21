@@ -10,6 +10,7 @@ import {
 } from "@/lib/ai/summary";
 import { awardXp } from "@/lib/gamification/award";
 import { XP_RULES } from "@/lib/gamification/xp";
+import { checkTrophies } from "@/lib/gamification/service";
 import { bumpEngagement } from "@/lib/sessions/service";
 import type { ActionState } from "@/lib/forms";
 
@@ -41,6 +42,7 @@ export async function generateSummary(materialId: string): Promise<ActionState> 
       sourceId: summary.id,
     });
     await bumpEngagement(user.id, "summariesViewed");
+    await checkTrophies(user.id);
     revalidatePath(`/materials/${materialId}`);
     return { ok: true };
   } catch {

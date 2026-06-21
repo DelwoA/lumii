@@ -13,6 +13,7 @@ import {
 } from "@/lib/quiz/token";
 import { quizXp } from "@/lib/gamification/xp";
 import { awardXp } from "@/lib/gamification/award";
+import { checkTrophies } from "@/lib/gamification/service";
 import { bumpEngagement } from "@/lib/sessions/service";
 import type {
   QuizQuestionPublic,
@@ -112,6 +113,7 @@ export async function submitQuiz(input: {
 
   // Best-effort engagement bump for any in-progress study session.
   await bumpEngagement(user.id, "quizAttempts");
+  await checkTrophies(user.id);
 
   const graded: GradedQuestion[] = input.questions.map((q, i) => ({
     id: q.id,

@@ -10,8 +10,10 @@ import {
   TrendingUp,
   Trophy,
   Settings,
+  Flame,
 } from "lucide-react";
 import { LumenSpark } from "@/components/lumen-spark";
+import { Progress } from "@/components/ui/progress";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +25,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import type { GamificationSummary } from "@/lib/gamification/service";
+
+function titleCase(s: string): string {
+  return s.charAt(0) + s.slice(1).toLowerCase();
+}
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -34,7 +41,7 @@ const NAV = [
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
-export function AppSidebar() {
+export function AppSidebar({ summary }: { summary?: GamificationSummary }) {
   const pathname = usePathname();
 
   return (
@@ -74,7 +81,21 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        {/* Streak / XP / rank summary is wired in the gamification task. */}
+        {summary ? (
+          <div className="px-2 py-1.5 group-data-[collapsible=icon]:hidden">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium">{titleCase(summary.rank)}</span>
+              <span className="text-muted-foreground tabular-nums">
+                {summary.totalXp.toLocaleString()} XP
+              </span>
+            </div>
+            <Progress value={summary.progress.progress * 100} className="mt-1.5 h-1.5" />
+            <div className="text-muted-foreground mt-1.5 flex items-center gap-1 text-xs">
+              <Flame className="text-primary size-3" />
+              {summary.currentStreak}-day streak
+            </div>
+          </div>
+        ) : null}
       </SidebarFooter>
     </Sidebar>
   );

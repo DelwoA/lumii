@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { awardXp } from "@/lib/gamification/award";
 import { sessionXp } from "@/lib/gamification/xp";
 import { ADHERENCE_THRESHOLD } from "@/lib/gamification/streak";
+import { checkTrophies, processAdherenceForDay } from "@/lib/gamification/service";
 import {
   MIN_SCORED_DURATION_SEC,
   SESSION_QUALITY_VERSION,
@@ -121,6 +122,21 @@ async function finalize(args: {
       sourceId: session.id,
       payload: { qualityScore: quality.total, autoClosed },
     });
+  }
+
+  // Best-effort gamification follow-ups (adherent/perfect-day XP, streak,
+  // trophies). A failure here must never undo a finalized session.
+  try {
+    if (session.scheduledSessionId) {
+      const sched = await prisma.scheduledSession.findUnique({
+        where: { id: session.scheduledSessionId },
+        select: { plannedLocalDate: true },
+      });
+      if (sched) await processAdherenceForDay(session.userId, sched.plannedLocalDate);
+    }
+    await checkTrophies(session.userId);
+  } catch {
+    // ignore
   }
 
   return quality;

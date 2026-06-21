@@ -1,5 +1,6 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import { requireDbUser } from "@/lib/auth";
+import { getGamificationSummary } from "@/lib/gamification/service";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopbar } from "@/components/app-topbar";
@@ -14,11 +15,12 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireDbUser();
+  const user = await requireDbUser();
+  const summary = await getGamificationSummary(user.id);
   return (
     <ClerkProvider>
       <SidebarProvider>
-        <AppSidebar />
+        <AppSidebar summary={summary} />
         <SidebarInset>
           <AppTopbar />
           <ActiveSessionBar />
