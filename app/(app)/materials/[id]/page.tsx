@@ -108,6 +108,7 @@ export default async function MaterialDetailPage({
       <Card className="p-5">
         <MaterialAISection
           materialId={material.id}
+          materialTitle={material.title}
           summaryMarkdown={latestSummary}
         />
       </Card>

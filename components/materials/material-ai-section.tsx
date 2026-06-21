@@ -9,12 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/markdown";
 import { generateSummary } from "@/app/(app)/materials/ai";
+import { QuizRunner } from "@/components/materials/quiz-runner";
 
 export function MaterialAISection({
   materialId,
+  materialTitle,
   summaryMarkdown,
 }: {
   materialId: string;
+  materialTitle: string;
   summaryMarkdown: string | null;
 }) {
   const router = useRouter();
@@ -78,9 +81,7 @@ export function MaterialAISection({
       </TabsContent>
 
       <TabsContent value="quiz" className="mt-4">
-        <p className="text-muted-foreground py-6 text-center text-sm">
-          Quiz generation is coming next.
-        </p>
+        <QuizRunner materialId={materialId} materialTitle={materialTitle} />
       </TabsContent>
 
       <TabsContent value="chat" className="mt-4">
