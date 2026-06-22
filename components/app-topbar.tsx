@@ -1,10 +1,10 @@
 "use client";
 
-import { UserButton } from "@clerk/nextjs";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { StartSessionButton } from "@/components/session/start-session-button";
+import { UserMenu } from "@/components/user-menu";
 
 export function AppTopbar() {
   return (
@@ -14,7 +14,7 @@ export function AppTopbar() {
       <div className="flex-1" />
       <StartSessionButton />
       <ThemeToggle />
-      <UserButton />
+      <UserMenu />
     </header>
   );
 }

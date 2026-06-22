@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
+import { ArrowRight, LayoutDashboard, Menu } from "lucide-react";
 import { LumenSpark } from "@/components/lumen-spark";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UserMenu } from "@/components/user-menu";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Sheet,
@@ -23,6 +25,10 @@ const LINKS = [
 
 export function MarketingNav() {
   const [open, setOpen] = useState(false);
+  const { isLoaded, isSignedIn } = useAuth();
+  // Keep the static HTML deterministic by rendering signed-out controls until
+  // Clerk resolves client-side. Signed-in visitors may see a brief control swap.
+  const signedIn = isLoaded && isSignedIn;
 
   return (
     <header className="bg-background/80 sticky top-0 z-50 border-b backdrop-blur">
@@ -49,21 +55,47 @@ export function MarketingNav() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Link
-            href="/sign-in"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "hidden sm:inline-flex",
+
+          {/* Desktop auth cluster */}
+          <div className="hidden items-center gap-2 md:flex">
+            {signedIn ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className={cn(
+                    buttonVariants({ size: "sm" }),
+                    "gap-1.5 rounded-full",
+                  )}
+                >
+                  Dashboard
+                  <ArrowRight className="size-3.5" />
+                </Link>
+                <UserMenu />
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/sign-in"
+                  className={buttonVariants({ variant: "ghost", size: "sm" })}
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/sign-up"
+                  className={cn(buttonVariants({ size: "sm" }), "rounded-full")}
+                >
+                  Sign up
+                </Link>
+              </>
             )}
-          >
-            Log in
-          </Link>
-          <Link
-            href="/sign-up"
-            className={cn(buttonVariants({ size: "sm" }), "rounded-full")}
-          >
-            Sign up
-          </Link>
+          </div>
+
+          {/* Mobile: keep the avatar visible when signed in, plus the menu sheet */}
+          {signedIn ? (
+            <div className="md:hidden">
+              <UserMenu />
+            </div>
+          ) : null}
 
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger
@@ -96,18 +128,36 @@ export function MarketingNav() {
                     {l.label}
                   </a>
                 ))}
-                <Link
-                  href="/sign-in"
-                  className={cn(buttonVariants({ variant: "outline" }), "mt-3")}
-                >
-                  Log in
-                </Link>
-                <Link
-                  href="/sign-up"
-                  className={cn(buttonVariants(), "mt-1 rounded-full")}
-                >
-                  Sign up
-                </Link>
+                {signedIn ? (
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      buttonVariants(),
+                      "mt-3 gap-1.5 rounded-full",
+                    )}
+                  >
+                    <LayoutDashboard className="size-4" />
+                    Go to dashboard
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      href="/sign-in"
+                      onClick={() => setOpen(false)}
+                      className={cn(buttonVariants({ variant: "outline" }), "mt-3")}
+                    >
+                      Log in
+                    </Link>
+                    <Link
+                      href="/sign-up"
+                      onClick={() => setOpen(false)}
+                      className={cn(buttonVariants(), "mt-1 rounded-full")}
+                    >
+                      Sign up
+                    </Link>
+                  </>
+                )}
               </div>
             </SheetContent>
           </Sheet>
