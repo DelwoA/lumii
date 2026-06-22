@@ -99,8 +99,12 @@ export function SettingsClient({
   }
 
   async function onDeleteMood() {
-    await deleteMoodData();
-    toast.success("Mood data deleted");
+    try {
+      await deleteMoodData();
+      toast.success("Mood data deleted");
+    } catch {
+      toast.error("Could not delete mood data");
+    }
   }
 
   return (

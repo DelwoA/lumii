@@ -5,7 +5,6 @@ import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { ArrowRight, LayoutDashboard, Menu } from "lucide-react";
 import { LumenSpark } from "@/components/lumen-spark";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -54,8 +53,6 @@ export function MarketingNav() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <ThemeToggle />
-
           {/* Desktop auth cluster */}
           <div className="hidden items-center gap-2 md:flex">
             {signedIn ? (

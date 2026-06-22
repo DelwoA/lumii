@@ -29,22 +29,36 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // LUMII is dark-only: the `dark` class is hardcoded so static pages paint
+  // dark with no flash, and next-themes is locked to dark via forcedTheme.
   return (
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <ClerkProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
+        <ClerkProvider
+          appearance={{
+            // Force Clerk's auth UI dark to match the app (LUMII is dark-only).
+            // Clerk derives its palette from these base variables.
+            variables: {
+              colorPrimary: "#caf136",
+              colorPrimaryForeground: "#0a0a0a",
+              colorBackground: "#0a0a0a",
+              colorForeground: "#fafafa",
+              colorMutedForeground: "#a1a1a1",
+              colorInput: "#141414",
+              colorInputForeground: "#fafafa",
+              colorBorder: "#262626",
+              colorNeutral: "#ffffff",
+            },
+            captcha: { theme: "dark" },
+          }}
+        >
+          <ThemeProvider attribute="class" forcedTheme="dark" disableTransitionOnChange>
             {children}
-            <Toaster richColors position="top-right" />
+            <Toaster theme="dark" richColors position="bottom-right" />
           </ThemeProvider>
         </ClerkProvider>
       </body>
