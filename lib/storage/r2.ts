@@ -1,15 +1,16 @@
 import "server-only";
 import {
-  S3Client,
   PutObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   DeleteObjectsCommand,
   ListObjectsV2Command,
+  type S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "node:crypto";
 import { requireServerEnv } from "@/lib/env";
+import { createR2Client } from "@/lib/storage/r2-client";
 
 /**
  * Cloudflare R2 access (S3-compatible). The bucket is PRIVATE: clients upload
@@ -25,13 +26,10 @@ function client(): S3Client {
     "CLOUDFLARE_R2_ACCESS_KEY_ID",
     "CLOUDFLARE_R2_SECRET_ACCESS_KEY",
   );
-  cached = new S3Client({
-    region: "auto",
+  cached = createR2Client({
     endpoint: env.CLOUDFLARE_R2_ENDPOINT,
-    credentials: {
-      accessKeyId: env.CLOUDFLARE_R2_ACCESS_KEY_ID,
-      secretAccessKey: env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,
-    },
+    accessKeyId: env.CLOUDFLARE_R2_ACCESS_KEY_ID,
+    secretAccessKey: env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,
   });
   return cached;
 }
@@ -42,7 +40,10 @@ function bucket(): string {
 
 /** Opaque per-user object key: users/<internalId>/<uuid>.<ext> */
 export function objectKey(userId: string, ext: string): string {
-  const safeExt = ext.replace(/[^a-z0-9]/gi, "").slice(0, 8).toLowerCase();
+  const safeExt = ext
+    .replace(/[^a-z0-9]/gi, "")
+    .slice(0, 8)
+    .toLowerCase();
   return `users/${userId}/${randomUUID()}${safeExt ? "." + safeExt : ""}`;
 }
 
@@ -53,7 +54,11 @@ export function presignUpload(
 ): Promise<string> {
   return getSignedUrl(
     client(),
-    new PutObjectCommand({ Bucket: bucket(), Key: key, ContentType: contentType }),
+    new PutObjectCommand({
+      Bucket: bucket(),
+      Key: key,
+      ContentType: contentType,
+    }),
     { expiresIn },
   );
 }
@@ -86,7 +91,11 @@ export async function getObjectHead(
 ): Promise<Uint8Array | null> {
   try {
     const res = await client().send(
-      new GetObjectCommand({ Bucket: bucket(), Key: key, Range: `bytes=0-${bytes - 1}` }),
+      new GetObjectCommand({
+        Bucket: bucket(),
+        Key: key,
+        Range: `bytes=0-${bytes - 1}`,
+      }),
     );
     return (await res.Body?.transformToByteArray()) ?? null;
   } catch {
@@ -133,7 +142,10 @@ export async function deleteObjectsForUser(userId: string): Promise<void> {
       .map((Key) => ({ Key }));
     if (objects.length > 0) {
       await client().send(
-        new DeleteObjectsCommand({ Bucket: bucket(), Delete: { Objects: objects } }),
+        new DeleteObjectsCommand({
+          Bucket: bucket(),
+          Delete: { Objects: objects },
+        }),
       );
     }
     token = list.IsTruncated ? list.NextContinuationToken : undefined;
