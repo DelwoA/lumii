@@ -27,13 +27,25 @@ import {
 import {
   MAX_FILE_BYTES,
   MULTIPART_THRESHOLD,
-  PDF_CONTENT_TYPE,
+  UPLOAD_ACCEPT_ATTR,
+  UPLOAD_CONTENT_TYPES,
+  UPLOAD_TYPES_LABEL,
+  type UploadContentType,
 } from "@/lib/validations/material";
 import { uploadParts } from "@/lib/storage/multipart-upload";
 
 const MAX_FILE_MB = Math.floor(MAX_FILE_BYTES / (1024 * 1024));
 
-type UploadArgs = { title: string; subjectId?: string; file: File };
+function isAcceptedType(type: string): type is UploadContentType {
+  return (UPLOAD_CONTENT_TYPES as readonly string[]).includes(type);
+}
+
+type UploadArgs = {
+  title: string;
+  subjectId?: string;
+  file: File;
+  contentType: UploadContentType;
+};
 
 export function MaterialUploadDialog({
   subjects,
@@ -49,12 +61,12 @@ export function MaterialUploadDialog({
   const fileRef = useRef<HTMLInputElement>(null);
 
   /** Single-PUT fast path for small files. Toasts + returns false on failure. */
-  async function uploadSingle({ title, subjectId, file }: UploadArgs) {
+  async function uploadSingle({ title, subjectId, file, contentType }: UploadArgs) {
     const res = await requestUpload({
       title,
       subjectId,
       fileName: file.name,
-      contentType: PDF_CONTENT_TYPE,
+      contentType,
       sizeBytes: file.size,
     });
     if (!res.ok) {
@@ -64,7 +76,7 @@ export function MaterialUploadDialog({
     const put = await fetch(res.uploadUrl, {
       method: "PUT",
       body: file,
-      headers: { "Content-Type": PDF_CONTENT_TYPE },
+      headers: { "Content-Type": contentType },
     });
     if (!put.ok) {
       toast.error("Upload failed. Please try again.");
@@ -79,12 +91,12 @@ export function MaterialUploadDialog({
   }
 
   /** Resumable multipart path for large files. Aborts the upload on failure. */
-  async function uploadMultipart({ title, subjectId, file }: UploadArgs) {
+  async function uploadMultipart({ title, subjectId, file, contentType }: UploadArgs) {
     const res = await startMultipartUpload({
       title,
       subjectId,
       fileName: file.name,
-      contentType: PDF_CONTENT_TYPE,
+      contentType,
       sizeBytes: file.size,
     });
     if (!res.ok) {
@@ -127,16 +139,16 @@ export function MaterialUploadDialog({
     const subjectId = (form.get("subjectId") as string) || undefined;
     const file = fileRef.current?.files?.[0];
 
-    if (!file) return toast.error("Choose a PDF file");
-    if (file.type !== PDF_CONTENT_TYPE)
-      return toast.error("Only PDF files are supported");
+    if (!file) return toast.error("Choose a file to upload");
+    if (!isAcceptedType(file.type))
+      return toast.error("Only PDF, PNG, JPEG, or WebP files are supported");
     if (file.size > MAX_FILE_BYTES)
       return toast.error(`File must be ${MAX_FILE_MB} MB or less`);
 
     setBusy(true);
     setProgress(null);
     try {
-      const args = { title, subjectId, file };
+      const args: UploadArgs = { title, subjectId, file, contentType: file.type };
       const ok =
         file.size > MULTIPART_THRESHOLD
           ? await uploadMultipart(args)
@@ -171,16 +183,16 @@ export function MaterialUploadDialog({
         render={
           <Button className="gap-2">
             <Upload className="size-4" />
-            Upload PDF
+            Upload file
           </Button>
         }
       />
       <DialogContent>
         <form onSubmit={onSubmit}>
           <DialogHeader>
-            <DialogTitle>Upload a PDF</DialogTitle>
+            <DialogTitle>Upload a file</DialogTitle>
             <DialogDescription>
-              Lecture slides or notes, up to {MAX_FILE_MB} MB.
+              {UPLOAD_TYPES_LABEL}, up to {MAX_FILE_MB} MB.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -195,12 +207,12 @@ export function MaterialUploadDialog({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="m-file">PDF file</Label>
+              <Label htmlFor="m-file">File</Label>
               <Input
                 id="m-file"
                 ref={fileRef}
                 type="file"
-                accept="application/pdf"
+                accept={UPLOAD_ACCEPT_ATTR}
                 required
               />
             </div>

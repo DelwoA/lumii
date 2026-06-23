@@ -233,13 +233,12 @@ export async function deleteObjectsForUser(userId: string): Promise<void> {
   } while (token);
 }
 
-/** True if the bytes begin with the PDF magic number (%PDF). */
-export function isPdfMagic(bytes: Uint8Array | null): boolean {
-  if (!bytes || bytes.length < 4) return false;
-  return (
-    bytes[0] === 0x25 && // %
-    bytes[1] === 0x50 && // P
-    bytes[2] === 0x44 && // D
-    bytes[3] === 0x46 // F
-  );
-}
+// Magic-byte (file signature) checks live in ./magic so they can be unit-tested
+// without importing this server-only module.
+export {
+  isPdfMagic,
+  isPngMagic,
+  isJpegMagic,
+  isWebpMagic,
+  matchesMagic,
+} from "./magic";

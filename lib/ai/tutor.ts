@@ -1,14 +1,18 @@
 import "server-only";
 import { generateText } from "ai";
-import { withModelFallback } from "@/lib/ai/provider";
+import { withModelFallback, fileOrImagePart } from "@/lib/ai/provider";
 import type { ChatMessage } from "@/lib/ai/chat-types";
 
 const MAX_HISTORY = 10;
 
-type Part =
+// Only a user turn can carry the attached file/image; assistant turns are text.
+type UserPart =
   | { type: "text"; text: string }
-  | { type: "file"; data: string; mediaType: string; filename: string };
-type ModelMessage = { role: "user" | "assistant"; content: string | Part[] };
+  | { type: "file"; data: string; mediaType: string; filename: string }
+  | { type: "image"; image: string; mediaType: string };
+type TutorMessage =
+  | { role: "user"; content: string | UserPart[] }
+  | { role: "assistant"; content: string };
 
 function systemPrompt(title: string, hasContext: boolean): string {
   return [
@@ -40,18 +44,13 @@ export async function chatReply(opts: {
     systemPrompt(opts.title, hasText || Boolean(opts.fileBytes)) +
     (opts.context ? `\n\nMATERIAL:\n${opts.context}` : "");
 
-  const messages: ModelMessage[] = [];
+  const messages: TutorMessage[] = [];
   if (!hasText && opts.fileBytes && opts.mimeType) {
     messages.push({
       role: "user",
       content: [
         { type: "text", text: "Here is the study material to use as your primary source." },
-        {
-          type: "file",
-          data: Buffer.from(opts.fileBytes).toString("base64"),
-          mediaType: opts.mimeType,
-          filename: "material.pdf",
-        },
+        fileOrImagePart(opts.fileBytes, opts.mimeType),
       ],
     });
     messages.push({
@@ -60,7 +59,11 @@ export async function chatReply(opts: {
     });
   }
   for (const m of opts.history.slice(-MAX_HISTORY)) {
-    messages.push({ role: m.role, content: m.content });
+    messages.push(
+      m.role === "user"
+        ? { role: "user", content: m.content }
+        : { role: "assistant", content: m.content },
+    );
   }
 
   const { result, modelId } = await withModelFallback((model) =>

@@ -57,12 +57,32 @@ type FilePart = {
   mediaType: string;
   filename: string;
 };
-export type MaterialContent = (TextPart | FilePart)[];
+type ImagePart = { type: "image"; image: string; mediaType: string };
+export type MaterialPart = TextPart | FilePart | ImagePart;
+export type MaterialContent = MaterialPart[];
 
 /**
- * Build a user message's content from a material: a PDF is attached as a file
- * part (OpenRouter's universal PDF support handles it); a typed note is inlined
- * as text. Never include PII or mood data here.
+ * Attach raw file bytes as the right multimodal part: images go as an image
+ * part, everything else (PDF) as a file part (OpenRouter's universal PDF
+ * support handles it). Bytes are base64-encoded because the raw Uint8Array is
+ * not transmitted correctly by OpenRouter.
+ */
+export function fileOrImagePart(
+  fileBytes: Uint8Array,
+  mimeType: string,
+): FilePart | ImagePart {
+  const data = Buffer.from(fileBytes).toString("base64");
+  if (mimeType.startsWith("image/")) {
+    return { type: "image", image: data, mediaType: mimeType };
+  }
+  const ext = mimeType.split("/").pop() || "bin";
+  return { type: "file", data, mediaType: mimeType, filename: `material.${ext}` };
+}
+
+/**
+ * Build a user message's content from a material: a file (PDF or image) is
+ * attached as the right multimodal part; a typed note is inlined as text. Never
+ * include PII or mood data here.
  */
 export function materialUserContent(
   instruction: string,
@@ -74,12 +94,7 @@ export function materialUserContent(
 ): MaterialContent {
   const parts: MaterialContent = [{ type: "text", text: instruction }];
   if (material.fileBytes && material.mimeType) {
-    parts.push({
-      type: "file",
-      data: Buffer.from(material.fileBytes).toString("base64"),
-      mediaType: material.mimeType,
-      filename: "material.pdf",
-    });
+    parts.push(fileOrImagePart(material.fileBytes, material.mimeType));
   } else if (material.noteText) {
     parts.push({ type: "text", text: `\n\n--- MATERIAL ---\n${material.noteText}` });
   }

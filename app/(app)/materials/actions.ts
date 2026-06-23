@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import type { MaterialType } from "@prisma/client";
 import {
   requestUploadInput,
   completeMultipartInput,
   abortMultipartInput,
   noteInput,
+  materialTypeForContentType,
   MAX_FILE_BYTES,
   MULTIPART_PART_SIZE,
   type RequestUploadInput,
@@ -23,7 +25,7 @@ import {
   abortMultipartUpload,
   headObject,
   getObjectHead,
-  isPdfMagic,
+  matchesMagic,
   deleteObject,
 } from "@/lib/storage/r2";
 import type { ActionState } from "@/lib/forms";
@@ -56,16 +58,20 @@ async function assertScopeOwned(
   return true;
 }
 
-/** Opaque per-user PDF key derived from the original file name's extension. */
-function pdfKeyFor(userId: string, fileName: string): string {
-  const ext = fileName.includes(".") ? fileName.split(".").pop()! : "pdf";
+/** Only file materials (not notes) participate in the R2 upload flow. */
+const FILE_TYPES: MaterialType[] = ["PDF", "IMAGE"];
+
+/** Opaque per-user object key derived from the original file name's extension. */
+function fileKeyFor(userId: string, fileName: string): string {
+  const ext = fileName.includes(".") ? fileName.split(".").pop()! : "";
   return objectKey(userId, ext);
 }
 
-/** Create the PENDING_UPLOAD PDF row for a pre-allocated R2 key. */
-async function createPendingPdf(
+/** Create the PENDING_UPLOAD file row (PDF or image) for a pre-allocated key. */
+async function createPendingFile(
   userId: string,
   key: string,
+  type: MaterialType,
   data: RequestUploadInput,
 ): Promise<string> {
   const material = await prisma.material.create({
@@ -74,7 +80,7 @@ async function createPendingPdf(
       subjectId: data.subjectId,
       topicId: data.topicId,
       title: data.title,
-      type: "PDF",
+      type,
       r2Key: key,
       originalName: data.fileName,
       mimeType: data.contentType,
@@ -86,15 +92,22 @@ async function createPendingPdf(
   return material.id;
 }
 
-/** Verify an uploaded object is a non-empty, in-bounds PDF (size + magic bytes). */
-async function verifyPdfObject(
+/**
+ * Verify an uploaded object is non-empty, in-bounds, and actually the declared
+ * file type (magic-byte check via a ranged GET; 12 bytes covers PDF + images).
+ */
+async function verifyFileObject(
   r2Key: string,
+  mimeType: string | null,
 ): Promise<{ valid: boolean; size: number }> {
   const head = await headObject(r2Key);
-  const magic = await getObjectHead(r2Key, 8);
+  const magic = await getObjectHead(r2Key, 12);
   const size = head?.size ?? 0;
   const valid =
-    head !== null && size > 0 && size <= MAX_FILE_BYTES && isPdfMagic(magic);
+    head !== null &&
+    size > 0 &&
+    size <= MAX_FILE_BYTES &&
+    matchesMagic(mimeType ?? "", magic);
   return { valid, size };
 }
 
@@ -133,8 +146,11 @@ export async function requestUpload(
     return { ok: false, error: "Subject or topic not found" };
   }
 
-  const key = pdfKeyFor(user.id, fileName);
-  const materialId = await createPendingPdf(user.id, key, parsed.data);
+  const type = materialTypeForContentType(contentType);
+  if (!type) return { ok: false, error: "Unsupported file type" };
+
+  const key = fileKeyFor(user.id, fileName);
+  const materialId = await createPendingFile(user.id, key, type, parsed.data);
   const uploadUrl = await presignUpload(key, contentType);
   return { ok: true, materialId, uploadUrl };
 }
@@ -168,7 +184,10 @@ export async function startMultipartUpload(
     return { ok: false, error: "Subject or topic not found" };
   }
 
-  const key = pdfKeyFor(user.id, fileName);
+  const type = materialTypeForContentType(contentType);
+  if (!type) return { ok: false, error: "Unsupported file type" };
+
+  const key = fileKeyFor(user.id, fileName);
   const partCount = Math.max(1, Math.ceil(sizeBytes / MULTIPART_PART_SIZE));
 
   let uploadId: string;
@@ -190,7 +209,7 @@ export async function startMultipartUpload(
     return { ok: false, error: "Could not start the upload. Please try again." };
   }
 
-  const materialId = await createPendingPdf(user.id, key, parsed.data);
+  const materialId = await createPendingFile(user.id, key, type, parsed.data);
   return { ok: true, materialId, uploadId, partUrls, partSize: MULTIPART_PART_SIZE };
 }
 
@@ -206,8 +225,8 @@ export async function completeUpload(
   const { materialId, uploadId, parts } = parsed.data;
 
   const material = await prisma.material.findFirst({
-    where: { id: materialId, userId: user.id, type: "PDF" },
-    select: { id: true, r2Key: true },
+    where: { id: materialId, userId: user.id, type: { in: FILE_TYPES } },
+    select: { id: true, r2Key: true, mimeType: true },
   });
   if (!material?.r2Key) return fail("Material not found");
 
@@ -217,7 +236,10 @@ export async function completeUpload(
     return fail("Could not finish the upload. Please try again.");
   }
 
-  return markVerified(material.id, await verifyPdfObject(material.r2Key));
+  return markVerified(
+    material.id,
+    await verifyFileObject(material.r2Key, material.mimeType),
+  );
 }
 
 /** Abandon an in-progress multipart upload: abort in R2 and drop the row. */
@@ -233,7 +255,7 @@ export async function abortUpload(
     where: {
       id: materialId,
       userId: user.id,
-      type: "PDF",
+      type: { in: FILE_TYPES },
       status: "PENDING_UPLOAD",
     },
     select: { id: true, r2Key: true },
@@ -250,12 +272,15 @@ export async function abortUpload(
 export async function finalizeUpload(materialId: string): Promise<ActionState> {
   const user = await requireDbUser();
   const material = await prisma.material.findFirst({
-    where: { id: materialId, userId: user.id, type: "PDF" },
-    select: { id: true, r2Key: true },
+    where: { id: materialId, userId: user.id, type: { in: FILE_TYPES } },
+    select: { id: true, r2Key: true, mimeType: true },
   });
   if (!material?.r2Key) return fail("Material not found");
 
-  return markVerified(material.id, await verifyPdfObject(material.r2Key));
+  return markVerified(
+    material.id,
+    await verifyFileObject(material.r2Key, material.mimeType),
+  );
 }
 
 /** Create a typed-note material (no file). */

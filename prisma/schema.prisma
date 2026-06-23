@@ -15,6 +15,7 @@ datasource db {
 
 enum MaterialType {
   PDF
+  IMAGE
   NOTE
 }
 
@@ -128,7 +129,7 @@ model Material {
   topic        Topic?         @relation(fields: [topicId], references: [id], onDelete: SetNull)
   title        String
   type         MaterialType
-  // File materials (PDF):
+  // File materials (PDF, image):
   r2Key        String?
   originalName String?
   mimeType     String?

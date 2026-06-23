@@ -39,7 +39,7 @@ export default async function MaterialDetailPage({
   const latestSummary = material.summaries[0]?.content ?? null;
 
   const fileUrl =
-    material.type === "PDF" && material.r2Key && material.status === "READY"
+    material.type !== "NOTE" && material.r2Key && material.status === "READY"
       ? await presignDownload(material.r2Key, 600)
       : null;
 
@@ -52,7 +52,11 @@ export default async function MaterialDetailPage({
               {material.title}
             </h1>
             <Badge variant="outline">
-              {material.type === "PDF" ? "PDF" : "Note"}
+              {material.type === "PDF"
+                ? "PDF"
+                : material.type === "IMAGE"
+                  ? "Image"
+                  : "Note"}
             </Badge>
             <Badge
               variant={
@@ -81,11 +85,23 @@ export default async function MaterialDetailPage({
         </Card>
       ) : material.status === "READY" && fileUrl ? (
         <Card className="overflow-hidden p-0">
-          <iframe
-            src={fileUrl}
-            title={material.title}
-            className="h-[70vh] w-full"
-          />
+          {material.type === "IMAGE" ? (
+            <div className="bg-muted/30 flex max-h-[70vh] justify-center overflow-auto p-4">
+              {/* Plain img (not next/image): the source is a short-lived presigned URL. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={fileUrl}
+                alt={material.title}
+                className="h-auto max-w-full object-contain"
+              />
+            </div>
+          ) : (
+            <iframe
+              src={fileUrl}
+              title={material.title}
+              className="h-[70vh] w-full"
+            />
+          )}
           <div className="border-t p-3">
             <a
               href={fileUrl}
