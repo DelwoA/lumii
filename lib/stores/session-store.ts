@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import type { ActiveSession } from "@/lib/sessions/types";
+import type { Celebration } from "@/lib/gamification/celebration";
 import {
   getActiveSessionAction,
   heartbeatAction,
@@ -14,6 +15,7 @@ interface StopOutcome {
   durationSec?: number;
   qualityScore?: number | null;
   scored?: boolean;
+  celebration?: Celebration;
   error?: string;
 }
 
@@ -71,6 +73,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           durationSec: res.durationSec,
           qualityScore: res.qualityScore,
           scored: res.scored,
+          celebration: res.celebration,
         }
       : { ok: false, error: res.error };
   },

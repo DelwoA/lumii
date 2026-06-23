@@ -1,4 +1,5 @@
 /** Shared quiz types (kept out of the "use server" action file). */
+import type { Celebration } from "@/lib/gamification/celebration";
 
 /** A question as sent to the client (no answer key). */
 export type QuizQuestionPublic = {
@@ -28,5 +29,6 @@ export type SubmitQuizResult =
       questionCount: number;
       graded: GradedQuestion[];
       xpAwarded: number;
+      celebration?: Celebration;
     }
   | { ok: false; error: string };

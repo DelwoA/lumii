@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { LumenSpark } from "@/components/lumen-spark";
 import { useSessionStore } from "@/lib/stores/session-store";
+import { useCelebrationStore } from "@/lib/stores/celebration-store";
 import { HEARTBEAT_INTERVAL_SEC } from "@/lib/sessions/timing";
 import { formatClock, formatDurationShort } from "@/lib/format";
 
@@ -28,6 +29,7 @@ import { formatClock, formatDurationShort } from "@/lib/format";
  */
 export function ActiveSessionBar() {
   const { active, hydrated, stopping, refresh, beat, stop } = useSessionStore();
+  const celebrate = useCelebrationStore((s) => s.celebrate);
   const [now, setNow] = useState(() => Date.now());
   const [open, setOpen] = useState(false);
   const [goalDone, setGoalDone] = useState(false);
@@ -70,6 +72,7 @@ export function ActiveSessionBar() {
     } else {
       toast.success("Session saved (too short to score)");
     }
+    celebrate(res.celebration);
   }
 
   return (

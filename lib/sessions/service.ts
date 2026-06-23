@@ -4,7 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { awardXp } from "@/lib/gamification/award";
 import { sessionXp } from "@/lib/gamification/xp";
 import { ADHERENCE_THRESHOLD } from "@/lib/gamification/streak";
-import { checkTrophies, processAdherenceForDay } from "@/lib/gamification/service";
+import {
+  getCurrentRank,
+  processAdherenceForDay,
+  runAwardChecks,
+} from "@/lib/gamification/service";
+import { NO_CELEBRATION, type Celebration } from "@/lib/gamification/celebration";
 import {
   MIN_SCORED_DURATION_SEC,
   SESSION_QUALITY_VERSION,
@@ -50,7 +55,7 @@ function isUniqueViolation(e: unknown): boolean {
  * racing stop/reconcile cannot double-finalize), scores it when it ran long
  * enough, marks a linked scheduled session complete when sufficiently
  * adherent, and awards completion XP idempotently. Returns the quality
- * breakdown when scored, else null.
+ * breakdown when scored (else null) plus any awards to celebrate.
  */
 async function finalize(args: {
   session: StudySession;
@@ -60,8 +65,9 @@ async function finalize(args: {
   autoCloseReason?: "idle" | "cap" | null;
   goalCompleted?: boolean;
   reflection?: string;
-}): Promise<SessionQualityBreakdown | null> {
+}): Promise<{ quality: SessionQualityBreakdown | null; celebration: Celebration }> {
   const { session, endMs, explicitStop, autoClosed } = args;
+  const rankBefore = await getCurrentRank(session.userId);
   const credited = creditedDurationSec(session.startedAt.getTime(), endMs);
   const target = session.targetDurationSec ?? 0;
   const scored = credited >= MIN_SCORED_DURATION_SEC && target > 0;
@@ -94,7 +100,7 @@ async function finalize(args: {
       autoCloseReason: args.autoCloseReason ?? null,
     },
   });
-  if (closed.count === 0) return null;
+  if (closed.count === 0) return { quality: null, celebration: NO_CELEBRATION };
 
   // A study session that met the per-session adherence bar completes its plan.
   if (
@@ -125,7 +131,8 @@ async function finalize(args: {
   }
 
   // Best-effort gamification follow-ups (adherent/perfect-day XP, streak,
-  // trophies). A failure here must never undo a finalized session.
+  // trophies, rank-up). A failure here must never undo a finalized session.
+  let celebration = NO_CELEBRATION;
   try {
     if (session.scheduledSessionId) {
       const sched = await prisma.scheduledSession.findUnique({
@@ -134,12 +141,12 @@ async function finalize(args: {
       });
       if (sched) await processAdherenceForDay(session.userId, sched.plannedLocalDate);
     }
-    await checkTrophies(session.userId);
+    celebration = await runAwardChecks(session.userId, rankBefore);
   } catch {
     // ignore
   }
 
-  return quality;
+  return { quality, celebration };
 }
 
 /** Auto-close an open session if it is idle or past the hard cap. */
@@ -279,7 +286,7 @@ export async function stopSession(
 
   const capEndMs = open.startedAt.getTime() + HARD_CAP_SEC * 1000;
   const endMs = Math.min(Date.now(), capEndMs);
-  const quality = await finalize({
+  const { quality, celebration } = await finalize({
     session: open,
     endMs,
     explicitStop: true,
@@ -293,6 +300,7 @@ export async function stopSession(
     durationSec: creditedDurationSec(open.startedAt.getTime(), endMs),
     qualityScore: quality?.total ?? null,
     scored: quality !== null,
+    celebration,
   };
 }
 

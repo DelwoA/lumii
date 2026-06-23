@@ -11,6 +11,7 @@ import { Markdown } from "@/components/markdown";
 import { generateSummary } from "@/app/(app)/materials/ai";
 import { QuizRunner } from "@/components/materials/quiz-runner";
 import { MaterialChat } from "@/components/materials/material-chat";
+import { useCelebrationStore } from "@/lib/stores/celebration-store";
 
 export function MaterialAISection({
   materialId,
@@ -23,6 +24,7 @@ export function MaterialAISection({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const celebrate = useCelebrationStore((s) => s.celebrate);
 
   async function onGenerateSummary() {
     setBusy(true);
@@ -31,6 +33,7 @@ export function MaterialAISection({
     if (res.ok) {
       toast.success("Summary ready");
       router.refresh();
+      celebrate(res.celebration);
     } else {
       toast.error(res.error ?? "Could not generate the summary");
     }

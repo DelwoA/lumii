@@ -4,6 +4,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopbar } from "@/components/app-topbar";
 import { ActiveSessionBar } from "@/components/session/active-session-bar";
+import { CelebrationOverlay } from "@/components/celebration/celebration-overlay";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ export default async function AppLayout({
         <ActiveSessionBar />
         <main className="flex flex-1 flex-col">{children}</main>
       </SidebarInset>
+      <CelebrationOverlay />
     </SidebarProvider>
   );
 }

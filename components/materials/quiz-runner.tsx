@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { startQuiz, submitQuiz } from "@/app/(app)/materials/quiz-actions";
 import type { QuizQuestionPublic, GradedQuestion } from "@/lib/quiz/types";
+import { useCelebrationStore } from "@/lib/stores/celebration-store";
 
 type Phase = "idle" | "generating" | "taking" | "submitting" | "result";
 type Result = {
@@ -50,6 +51,7 @@ export function QuizRunner({
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [result, setResult] = useState<Result | null>(null);
   const startedAt = useRef(0);
+  const celebrate = useCelebrationStore((s) => s.celebrate);
 
   // Ephemeral result: warn before a tab close/refresh while it is on screen.
   useEffect(() => {
@@ -105,6 +107,7 @@ export function QuizRunner({
     });
     setPhase("result");
     if (res.xpAwarded > 0) toast.success(`Quiz complete. +${res.xpAwarded} XP`);
+    celebrate(res.celebration);
   }
 
   async function onExportPdf() {

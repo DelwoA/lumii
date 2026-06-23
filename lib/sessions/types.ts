@@ -1,4 +1,5 @@
 /** Client-safe session types (no server-only imports). */
+import type { Celebration } from "@/lib/gamification/celebration";
 
 export interface ActiveSession {
   id: string;
@@ -15,7 +16,13 @@ export type StartResult =
   | { ok: false; error: string };
 
 export type StopResult =
-  | { ok: true; durationSec: number; qualityScore: number | null; scored: boolean }
+  | {
+      ok: true;
+      durationSec: number;
+      qualityScore: number | null;
+      scored: boolean;
+      celebration?: Celebration;
+    }
   | { ok: false; error: string };
 
 export interface HeartbeatResult {

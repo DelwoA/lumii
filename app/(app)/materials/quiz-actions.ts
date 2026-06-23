@@ -13,7 +13,7 @@ import {
 } from "@/lib/quiz/token";
 import { quizXp } from "@/lib/gamification/xp";
 import { awardXp } from "@/lib/gamification/award";
-import { checkTrophies } from "@/lib/gamification/service";
+import { getCurrentRank, runAwardChecks } from "@/lib/gamification/service";
 import { bumpEngagement } from "@/lib/sessions/service";
 import type {
   QuizQuestionPublic,
@@ -79,6 +79,7 @@ export async function submitQuiz(input: {
     select: { subjectId: true, topicId: true },
   });
 
+  const rankBefore = await getCurrentRank(user.id);
   let xpAwarded = 0;
   try {
     // The unique idempotencyKey makes a completion record at-most-once.
@@ -113,7 +114,7 @@ export async function submitQuiz(input: {
 
   // Best-effort engagement bump for any in-progress study session.
   await bumpEngagement(user.id, "quizAttempts");
-  await checkTrophies(user.id);
+  const celebration = await runAwardChecks(user.id, rankBefore);
 
   const graded: GradedQuestion[] = input.questions.map((q, i) => ({
     id: q.id,
@@ -124,5 +125,5 @@ export async function submitQuiz(input: {
     explanation: key.explanations[i] ?? null,
   }));
 
-  return { ok: true, correctCount, questionCount, graded, xpAwarded };
+  return { ok: true, correctCount, questionCount, graded, xpAwarded, celebration };
 }

@@ -10,11 +10,14 @@ import {
 } from "@/lib/ai/summary";
 import { awardXp } from "@/lib/gamification/award";
 import { XP_RULES } from "@/lib/gamification/xp";
-import { checkTrophies } from "@/lib/gamification/service";
+import { getCurrentRank, runAwardChecks } from "@/lib/gamification/service";
 import { bumpEngagement } from "@/lib/sessions/service";
 import type { ActionState } from "@/lib/forms";
+import type { Celebration } from "@/lib/gamification/celebration";
 
-export async function generateSummary(materialId: string): Promise<ActionState> {
+export type SummaryResult = ActionState & { celebration?: Celebration };
+
+export async function generateSummary(materialId: string): Promise<SummaryResult> {
   const user = await requireDbUser();
   const loaded = await loadMaterialForAI(user.id, materialId);
   if (!loaded) return { ok: false, error: "Material is not ready yet" };
@@ -31,8 +34,8 @@ export async function generateSummary(materialId: string): Promise<ActionState> 
       },
       select: { id: true },
     });
-    // Ledger event + a small XP award (idempotent on the summary row), and a
-    // best-effort engagement bump if a study session is currently running.
+    // Capture rank before awarding so we can detect a rank-up to celebrate.
+    const rankBefore = await getCurrentRank(user.id);
     await awardXp({
       userId: user.id,
       type: "SUMMARY_GENERATED",
@@ -42,9 +45,9 @@ export async function generateSummary(materialId: string): Promise<ActionState> 
       sourceId: summary.id,
     });
     await bumpEngagement(user.id, "summariesViewed");
-    await checkTrophies(user.id);
+    const celebration = await runAwardChecks(user.id, rankBefore);
     revalidatePath(`/materials/${materialId}`);
-    return { ok: true };
+    return { ok: true, celebration };
   } catch {
     return { ok: false, error: "Could not generate the summary. Please try again." };
   }

@@ -11,6 +11,7 @@ import {
   type PlannedDay,
 } from "./streak";
 import { TROPHIES, type TrophyStats } from "./trophies";
+import type { Celebration, UnlockedTrophy } from "./celebration";
 
 /** Aggregate stats used for trophy checks and the achievements view. */
 async function getStats(userId: string): Promise<TrophyStats> {
@@ -60,14 +61,16 @@ async function ensureTrophies(): Promise<void> {
 }
 
 /**
- * Unlock any newly-earned trophies (and grant their bonus XP). Best-effort:
- * never throws into the calling action, since it runs after the primary work.
+ * Unlock any newly-earned trophies (and grant their bonus XP). Returns the
+ * trophies unlocked by THIS call (so the caller can celebrate them); returns an
+ * empty list if none or on error. Best-effort: never throws into the caller.
  */
-export async function checkTrophies(userId: string): Promise<void> {
+export async function checkTrophies(userId: string): Promise<UnlockedTrophy[]> {
+  const unlocked: UnlockedTrophy[] = [];
   try {
     const stats = await getStats(userId);
     const earned = TROPHIES.filter((t) => t.check(stats));
-    if (earned.length === 0) return;
+    if (earned.length === 0) return unlocked;
 
     await ensureTrophies();
     const rows = await prisma.trophy.findMany({
@@ -98,10 +101,41 @@ export async function checkTrophies(userId: string): Promise<void> {
         sourceId: def.code,
         payload: { code: def.code },
       });
+      unlocked.push({
+        code: def.code,
+        name: def.name,
+        description: def.description,
+        icon: def.icon,
+        xp: def.xp,
+      });
     }
   } catch {
-    // Gamification is non-critical; swallow.
+    // Gamification is non-critical; swallow and return whatever unlocked so far.
   }
+  return unlocked;
+}
+
+/** The user's current rank (BRONZE if no profile yet). */
+export async function getCurrentRank(userId: string): Promise<Rank> {
+  const profile = await prisma.gamificationProfile.findUnique({
+    where: { userId },
+    select: { rank: true },
+  });
+  return profile?.rank ?? "BRONZE";
+}
+
+/**
+ * Run the post-award checks for a user action and collect what to celebrate:
+ * newly-unlocked trophies plus a rank-up relative to `rankBefore` (which the
+ * caller captured before its awards). Best-effort and safe to ignore.
+ */
+export async function runAwardChecks(
+  userId: string,
+  rankBefore: Rank,
+): Promise<Celebration> {
+  const trophies = await checkTrophies(userId);
+  const rankAfter = await getCurrentRank(userId);
+  return { trophies, rankUp: rankAfter !== rankBefore ? rankAfter : null };
 }
 
 /** Rebuild the adherence streak projection from all planned days. */
