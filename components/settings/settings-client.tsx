@@ -117,7 +117,7 @@ export function SettingsClient({
       </div>
 
       {/* Profile */}
-      <Card className="space-y-4 p-5">
+      <Card className="space-y-5 p-5">
         <div>
           <h2 className="font-medium">Profile</h2>
           <p className="text-muted-foreground text-sm">
@@ -157,13 +157,17 @@ export function SettingsClient({
             </div>
           </div>
         </div>
-        <Button onClick={onSaveProfile} disabled={savingProfile}>
+        <Button
+          onClick={onSaveProfile}
+          disabled={savingProfile}
+          className="self-start"
+        >
           {savingProfile ? "Saving…" : "Save profile"}
         </Button>
       </Card>
 
       {/* Public profile */}
-      <Card className="space-y-4 p-5">
+      <Card className="space-y-5 p-5">
         <div>
           <h2 className="font-medium">Public showcase</h2>
           <p className="text-muted-foreground text-sm">
@@ -258,7 +262,7 @@ export function SettingsClient({
       </Card>
 
       {/* Privacy + danger zone */}
-      <Card className="space-y-4 p-5">
+      <Card className="space-y-5 p-5">
         <div>
           <h2 className="font-medium">Privacy</h2>
           <p className="text-muted-foreground text-sm">
@@ -268,7 +272,11 @@ export function SettingsClient({
         </div>
         <AlertDialog>
           <AlertDialogTrigger
-            render={<Button variant="outline">Delete my mood data</Button>}
+            render={
+              <Button variant="outline" className="self-start">
+                Delete my mood data
+              </Button>
+            }
           />
           <AlertDialogContent>
             <AlertDialogHeader>

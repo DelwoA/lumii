@@ -54,7 +54,7 @@ export function MarketingNav() {
 
         <div className="flex items-center gap-2">
           {/* Desktop auth cluster */}
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="hidden items-center gap-3 md:flex">
             {signedIn ? (
               <>
                 <Link

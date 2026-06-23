@@ -58,7 +58,7 @@ export function AppSidebar({ summary }: { summary?: GamificationSummary }) {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-2">
               {NAV.map((item) => {
                 const active =
                   pathname === item.href ||
