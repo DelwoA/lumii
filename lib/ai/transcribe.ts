@@ -25,6 +25,8 @@ const TRANSCRIBE_SYSTEM = [
 export async function transcribeAudio(opts: {
   fileBytes: Uint8Array;
   mimeType: string;
+  /** Aborts the model call when the caller's time budget is exhausted. */
+  signal?: AbortSignal;
 }): Promise<{ text: string; modelId: string }> {
   const result = await generateText({
     model: primaryModel(),
@@ -39,6 +41,7 @@ export async function transcribeAudio(opts: {
       },
     ],
     temperature: 0,
+    abortSignal: opts.signal,
   });
   return { text: result.text.trim(), modelId: PRIMARY_MODEL_ID };
 }

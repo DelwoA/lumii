@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 const STATUS_LABEL = {
   PENDING_UPLOAD: "Pending",
+  PENDING_TRANSCRIPTION: "Transcribing",
   TRANSCRIBING: "Transcribing",
   READY: "Ready",
   FAILED: "Failed",
@@ -40,9 +41,11 @@ export default async function MaterialDetailPage({
 
   const latestSummary = material.summaries[0]?.content ?? null;
 
-  // Audio shows its player while transcribing too, so allow that status.
+  // Audio shows its player while it is queued/transcribing too.
   const fileViewable =
-    material.status === "READY" || material.status === "TRANSCRIBING";
+    material.status === "READY" ||
+    material.status === "TRANSCRIBING" ||
+    material.status === "PENDING_TRANSCRIPTION";
   const fileUrl =
     material.type !== "NOTE" && material.r2Key && fileViewable
       ? await presignDownload(material.r2Key, 600)
@@ -135,7 +138,8 @@ export default async function MaterialDetailPage({
           )}
 
           {material.type === "AUDIO" &&
-          (material.status === "TRANSCRIBING" ||
+          (material.status === "PENDING_TRANSCRIPTION" ||
+            material.status === "TRANSCRIBING" ||
             material.status === "FAILED") ? (
             <Card className="flex flex-col items-start gap-3 p-5">
               <p className="text-muted-foreground text-sm">

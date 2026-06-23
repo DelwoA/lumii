@@ -1,5 +1,6 @@
 import "server-only";
 import { requireServerEnv } from "@/lib/env";
+import { orderEmbeddings } from "@/lib/rag/embed-response";
 
 /**
  * Gemini text embeddings via OpenRouter's OpenAI-compatible /embeddings
@@ -29,22 +30,8 @@ async function embedBatch(texts: string[]): Promise<number[][]> {
   if (!res.ok) {
     throw new Error(`Embeddings request failed (HTTP ${res.status})`);
   }
-  const json = (await res.json()) as {
-    data?: { index?: number; embedding?: number[] }[];
-  };
-  const data = json.data;
-  if (!Array.isArray(data) || data.length !== texts.length) {
-    throw new Error("Unexpected embeddings response shape");
-  }
-  // The OpenAI-compatible response may be unordered; restore input order.
-  return [...data]
-    .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
-    .map((d) => {
-      if (!Array.isArray(d.embedding) || d.embedding.length !== EMBEDDING_DIMENSIONS) {
-        throw new Error("Unexpected embedding dimension");
-      }
-      return d.embedding;
-    });
+  const json = (await res.json()) as { data?: unknown };
+  return orderEmbeddings(json.data, texts.length, EMBEDDING_DIMENSIONS);
 }
 
 /** Embed many texts (batched), preserving input order. */

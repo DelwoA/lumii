@@ -13,7 +13,11 @@ function vectorLiteral(vec: number[]): string {
  * (Re)build the retrieval index for a material's text: chunk it, embed the
  * chunks, and replace the stored chunks. The embedding column is a pgvector type
  * Prisma cannot write, so rows are inserted via raw SQL (the value is bound as a
- * parameter and cast to vector). Owner-scoped; safe to call with empty text.
+ * parameter and cast to vector). Safe to call with empty text.
+ *
+ * Precondition: callers MUST pass an already owner-verified (materialId, userId)
+ * pair (every current caller loads the material by id+userId first). This does
+ * not re-verify ownership, so do not call it with an unvalidated pair.
  */
 export async function indexMaterial(
   materialId: string,

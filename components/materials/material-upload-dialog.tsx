@@ -154,6 +154,12 @@ export function MaterialUploadDialog({
         parts,
       });
       if (!fin.ok) {
+        // Clean up the in-progress upload if completion itself failed (a no-op
+        // server-side if the object was already completed but failed validation).
+        await abortUpload({
+          materialId: res.materialId,
+          uploadId: res.uploadId,
+        }).catch(() => {});
         toast.error(fin.error ?? "File failed validation");
         return null;
       }

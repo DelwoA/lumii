@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 const STATUS_LABEL = {
   PENDING_UPLOAD: "Pending",
+  PENDING_TRANSCRIPTION: "Transcribing",
   TRANSCRIBING: "Transcribing",
   READY: "Ready",
   FAILED: "Failed",

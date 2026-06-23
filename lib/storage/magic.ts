@@ -43,6 +43,12 @@ export function isWebpMagic(bytes: Uint8Array | null): boolean {
   );
 }
 
+// Note: the audio checks below confirm the declared CONTAINER, not the audio
+// codec (e.g. any ISO-BMFF "ftyp" passes isM4aMagic, including some video). For
+// user-owned uploads this is proportionate: a non-audio file that slips through
+// simply fails transcription gracefully. Tightening to codec-level parsing would
+// need a media-parser dependency and is deliberately deferred.
+
 /** True for an MP3 (ID3 tag or an MPEG audio frame sync). */
 export function isMp3Magic(bytes: Uint8Array | null): boolean {
   if (!bytes || bytes.length < 3) return false;

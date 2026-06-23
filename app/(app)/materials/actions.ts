@@ -10,8 +10,10 @@ import {
   abortMultipartInput,
   noteInput,
   materialTypeForContentType,
+  isAudioContentType,
   MAX_FILE_BYTES,
   MULTIPART_PART_SIZE,
+  AUDIO_SINGLE_CALL_MAX_BYTES,
   type RequestUploadInput,
   type CompleteMultipartInput,
   type AbortMultipartInput,
@@ -98,6 +100,8 @@ async function createPendingFile(
 /**
  * Verify an uploaded object is non-empty, in-bounds, and actually the declared
  * file type (magic-byte check via a ranged GET; 12 bytes covers PDF + images).
+ * Audio gets the tighter single-call cap so the server enforces it too (the
+ * browser caps are advisory and can be bypassed by calling the action directly).
  */
 async function verifyFileObject(
   r2Key: string,
@@ -106,25 +110,29 @@ async function verifyFileObject(
   const head = await headObject(r2Key);
   const magic = await getObjectHead(r2Key, 12);
   const size = head?.size ?? 0;
+  const cap = isAudioContentType(mimeType ?? "")
+    ? AUDIO_SINGLE_CALL_MAX_BYTES
+    : MAX_FILE_BYTES;
   const valid =
     head !== null &&
     size > 0 &&
-    size <= MAX_FILE_BYTES &&
+    size <= cap &&
     matchesMagic(mimeType ?? "", magic);
   return { valid, size };
 }
 
 /**
  * Mark a material from a verification result and revalidate. A valid file
- * becomes READY, except audio, which becomes TRANSCRIBING (its transcript is
- * produced by a follow-up call before it is usable).
+ * becomes READY, except audio, which becomes PENDING_TRANSCRIPTION: the
+ * transcription worker then atomically claims it (-> TRANSCRIBING -> READY).
  */
 async function markVerified(
   materialId: string,
   type: MaterialType,
   result: { valid: boolean; size: number },
 ): Promise<ActionState> {
-  const validStatus: MaterialStatus = type === "AUDIO" ? "TRANSCRIBING" : "READY";
+  const validStatus: MaterialStatus =
+    type === "AUDIO" ? "PENDING_TRANSCRIPTION" : "READY";
   await prisma.material.update({
     where: { id: materialId },
     data: {
@@ -218,7 +226,14 @@ export async function startMultipartUpload(
     return { ok: false, error: "Could not start the upload. Please try again." };
   }
 
-  const materialId = await createPendingFile(user.id, key, type, parsed.data);
+  let materialId: string;
+  try {
+    materialId = await createPendingFile(user.id, key, type, parsed.data);
+  } catch {
+    // Don't leave an orphaned multipart upload in R2 if the row never persisted.
+    await abortMultipartUpload(key, uploadId).catch(() => {});
+    return { ok: false, error: "Could not start the upload. Please try again." };
+  }
   return { ok: true, materialId, uploadId, partUrls, partSize: MULTIPART_PART_SIZE };
 }
 
@@ -252,7 +267,7 @@ export async function completeUpload(
   );
 }
 
-/** Abandon an in-progress multipart upload: abort in R2 and drop the row. */
+/** Abandon an in-progress multipart upload: abort in R2, then drop the row. */
 export async function abortUpload(
   input: AbortMultipartInput,
 ): Promise<ActionState> {
@@ -272,7 +287,13 @@ export async function abortUpload(
   });
   if (!material?.r2Key) return OK; // Already cleaned up; abort is idempotent.
 
-  await abortMultipartUpload(material.r2Key, uploadId).catch(() => {});
+  // Delete the row only once R2 has confirmed the abort. If the abort fails we
+  // keep the PENDING_UPLOAD row as the record that this key still needs cleanup.
+  try {
+    await abortMultipartUpload(material.r2Key, uploadId);
+  } catch {
+    return fail("Could not cancel the upload. Please try again.");
+  }
   await prisma.material.delete({ where: { id: material.id } }).catch(() => {});
   revalidatePath("/materials");
   return OK;
@@ -294,46 +315,74 @@ export async function finalizeUpload(materialId: string): Promise<ActionState> {
   );
 }
 
+// A TRANSCRIBING row older than this is assumed dead (function killed mid-run)
+// and may be re-claimed by a retry. The transcription itself is bounded below.
+const STALE_TRANSCRIPTION_MS = 6 * 60 * 1000;
+// Overall budget for transcription, started at action entry, kept under the
+// 300s function limit so the R2 read, model call, and DB writes all fit.
+const TRANSCRIBE_TIMEOUT_MS = 240 * 1000;
+
 /**
- * Transcribe an uploaded audio material with the model and mark it READY. Used
- * both right after upload and as a retry from the material page (e.g. if the
- * first attempt was interrupted). Runs in one server call, so it relies on the
- * client-side length cap to stay within the function budget.
+ * Transcribe an uploaded audio material and mark it READY. Used right after
+ * upload and as a retry from the material page. The job is claimed atomically
+ * (PENDING_TRANSCRIPTION | FAILED | stale-TRANSCRIBING -> TRANSCRIBING) so two
+ * concurrent calls cannot both run or clobber a READY row. Single server call,
+ * so size is re-checked against the audio cap right before download.
  */
 export async function transcribeAudioAction(
   materialId: string,
 ): Promise<ActionState> {
   const user = await requireDbUser();
   const material = await prisma.material.findFirst({
-    where: {
-      id: materialId,
-      userId: user.id,
-      type: "AUDIO",
-      status: { in: ["TRANSCRIBING", "FAILED"] },
-    },
+    where: { id: materialId, userId: user.id, type: "AUDIO" },
     select: { id: true, r2Key: true, mimeType: true },
   });
   if (!material?.r2Key) return fail("Audio not found");
 
-  // Mark transcribing (covers a retry from FAILED) before the slow model call.
-  await prisma.material.update({
-    where: { id: material.id },
+  // Atomic claim: only one caller can transition into TRANSCRIBING. A live
+  // TRANSCRIBING row (fresh updatedAt) is left alone; a stale one is reclaimable.
+  const staleCutoff = new Date(Date.now() - STALE_TRANSCRIPTION_MS);
+  const claim = await prisma.material.updateMany({
+    where: {
+      id: material.id,
+      userId: user.id,
+      type: "AUDIO",
+      OR: [
+        { status: { in: ["PENDING_TRANSCRIPTION", "FAILED"] } },
+        { status: "TRANSCRIBING", updatedAt: { lt: staleCutoff } },
+      ],
+    },
     data: { status: "TRANSCRIBING" },
   });
+  if (claim.count !== 1) {
+    return fail("This audio is already being transcribed.");
+  }
 
-  const bytes = await getObjectBytes(material.r2Key);
-  if (!bytes) {
+  const failWith = async (message: string): Promise<ActionState> => {
     await prisma.material.update({
       where: { id: material.id },
       data: { status: "FAILED" },
     });
-    return fail("Could not read the audio file");
+    revalidatePath(`/materials/${material.id}`);
+    return fail(message);
+  };
+
+  // Re-check the live object size (the object could have been overwritten after
+  // upload verification) so an oversized clip never reaches the model.
+  const head = await headObject(material.r2Key);
+  if (!head || head.size <= 0) return failWith("Could not read the audio file");
+  if (head.size > AUDIO_SINGLE_CALL_MAX_BYTES) {
+    return failWith("This audio is too large to transcribe in one pass.");
   }
+
+  const bytes = await getObjectBytes(material.r2Key);
+  if (!bytes) return failWith("Could not read the audio file");
 
   try {
     const { text } = await transcribeAudio({
       fileBytes: bytes,
       mimeType: material.mimeType ?? "audio/mpeg",
+      signal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS),
     });
     if (!text) throw new Error("Empty transcript");
     await prisma.material.update({
@@ -350,11 +399,7 @@ export async function transcribeAudioAction(
     revalidatePath(`/materials/${material.id}`);
     return OK;
   } catch {
-    await prisma.material.update({
-      where: { id: material.id },
-      data: { status: "FAILED" },
-    });
-    return fail("Could not transcribe the audio. Please try again.");
+    return failWith("Could not transcribe the audio. Please try again.");
   }
 }
 

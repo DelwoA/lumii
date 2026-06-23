@@ -17,7 +17,7 @@ export function MaterialTranscribeButton({
   status,
 }: {
   materialId: string;
-  status: "TRANSCRIBING" | "FAILED";
+  status: "PENDING_TRANSCRIPTION" | "TRANSCRIBING" | "FAILED";
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);

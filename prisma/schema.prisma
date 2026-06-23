@@ -22,6 +22,7 @@ enum MaterialType {
 
 enum MaterialStatus {
   PENDING_UPLOAD
+  PENDING_TRANSCRIPTION
   TRANSCRIBING
   READY
   FAILED
@@ -171,6 +172,7 @@ model MaterialChunk {
   embedding  Unsupported("vector(1536)")
   createdAt  DateTime                   @default(now())
 
+  @@unique([materialId, chunkIndex])
   @@index([materialId])
   @@index([userId])
 }
