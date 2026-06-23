@@ -30,6 +30,7 @@ import {
   deleteObject,
 } from "@/lib/storage/r2";
 import { transcribeAudio } from "@/lib/ai/transcribe";
+import { indexMaterial } from "@/lib/rag/service";
 import type { ActionState } from "@/lib/forms";
 
 const OK: ActionState = { ok: true };
@@ -339,6 +340,12 @@ export async function transcribeAudioAction(
       where: { id: material.id },
       data: { status: "READY", transcript: text },
     });
+    // Best-effort: index the transcript so the tutor can use RAG on the audio.
+    try {
+      await indexMaterial(material.id, user.id, text);
+    } catch {
+      // Indexing is non-critical; the transcript is still usable without it.
+    }
     revalidatePath("/materials");
     revalidatePath(`/materials/${material.id}`);
     return OK;
@@ -371,7 +378,7 @@ export async function createNote(
   ) {
     return fail("Subject or topic not found");
   }
-  await prisma.material.create({
+  const material = await prisma.material.create({
     data: {
       userId: user.id,
       subjectId: parsed.data.subjectId,
@@ -381,7 +388,14 @@ export async function createNote(
       noteText: parsed.data.text,
       status: "READY",
     },
+    select: { id: true },
   });
+  // Best-effort: build the retrieval index so the tutor can use RAG on the note.
+  try {
+    await indexMaterial(material.id, user.id, parsed.data.text);
+  } catch {
+    // Indexing is non-critical; the note is still usable without it.
+  }
   revalidatePath("/materials");
   return OK;
 }

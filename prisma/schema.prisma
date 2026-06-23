@@ -75,6 +75,7 @@ model User {
   subjects         Subject[]
   topics           Topic[]
   materials        Material[]
+  materialChunks   MaterialChunk[]
   summaries        Summary[]
   quizCompletions  QuizCompletion[]
   scheduledSessions ScheduledSession[]
@@ -147,10 +148,31 @@ model Material {
 
   summaries       Summary[]
   quizCompletions QuizCompletion[]
+  chunks          MaterialChunk[]
 
   @@index([userId, createdAt])
   @@index([subjectId])
   @@index([topicId])
+}
+
+/**
+ * A retrieval chunk of a material's text (notes, transcripts) with its Gemini
+ * embedding. The `embedding` column is a pgvector type Prisma cannot operate on,
+ * so chunks are written and similarity-searched via raw SQL (see lib/rag).
+ */
+model MaterialChunk {
+  id         String                     @id @default(cuid())
+  userId     String
+  user       User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  materialId String
+  material   Material                   @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  chunkIndex Int
+  content    String                     @db.Text
+  embedding  Unsupported("vector(1536)")
+  createdAt  DateTime                   @default(now())
+
+  @@index([materialId])
+  @@index([userId])
 }
 
 model Summary {
