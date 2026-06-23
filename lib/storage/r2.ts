@@ -5,6 +5,10 @@ import {
   HeadObjectCommand,
   DeleteObjectsCommand,
   ListObjectsV2Command,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
   type S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -60,6 +64,83 @@ export function presignUpload(
       ContentType: contentType,
     }),
     { expiresIn },
+  );
+}
+
+/**
+ * Begin a multipart upload. Returns the R2 upload id that ties the parts
+ * together; the caller presigns one PUT per part and later completes (or
+ * aborts) the upload with this id.
+ */
+export async function createMultipartUpload(
+  key: string,
+  contentType: string,
+): Promise<string> {
+  const res = await client().send(
+    new CreateMultipartUploadCommand({
+      Bucket: bucket(),
+      Key: key,
+      ContentType: contentType,
+    }),
+  );
+  if (!res.UploadId) throw new Error("R2 did not return an UploadId");
+  return res.UploadId;
+}
+
+/**
+ * Presign a single part PUT. Parts carry no content type (only the completed
+ * object does), so nothing beyond the part number is signed; the browser sends
+ * the raw bytes. The expiry is generous because a large upload over a slow link
+ * can take several minutes.
+ */
+export function presignUploadPart(
+  key: string,
+  uploadId: string,
+  partNumber: number,
+  expiresIn = 3600,
+): Promise<string> {
+  return getSignedUrl(
+    client(),
+    new UploadPartCommand({
+      Bucket: bucket(),
+      Key: key,
+      UploadId: uploadId,
+      PartNumber: partNumber,
+    }),
+    { expiresIn },
+  );
+}
+
+/** Assemble the uploaded parts into the final object (parts sorted by number). */
+export async function completeMultipartUpload(
+  key: string,
+  uploadId: string,
+  parts: { partNumber: number; etag: string }[],
+): Promise<void> {
+  const Parts = [...parts]
+    .sort((a, b) => a.partNumber - b.partNumber)
+    .map((p) => ({ PartNumber: p.partNumber, ETag: p.etag }));
+  await client().send(
+    new CompleteMultipartUploadCommand({
+      Bucket: bucket(),
+      Key: key,
+      UploadId: uploadId,
+      MultipartUpload: { Parts },
+    }),
+  );
+}
+
+/** Discard an in-progress multipart upload so R2 does not retain its parts. */
+export async function abortMultipartUpload(
+  key: string,
+  uploadId: string,
+): Promise<void> {
+  await client().send(
+    new AbortMultipartUploadCommand({
+      Bucket: bucket(),
+      Key: key,
+      UploadId: uploadId,
+    }),
   );
 }
 

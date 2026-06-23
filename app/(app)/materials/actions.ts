@@ -5,13 +5,22 @@ import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   requestUploadInput,
+  completeMultipartInput,
+  abortMultipartInput,
   noteInput,
   MAX_FILE_BYTES,
+  MULTIPART_PART_SIZE,
   type RequestUploadInput,
+  type CompleteMultipartInput,
+  type AbortMultipartInput,
 } from "@/lib/validations/material";
 import {
   objectKey,
   presignUpload,
+  presignUploadPart,
+  createMultipartUpload,
+  completeMultipartUpload,
+  abortMultipartUpload,
   headObject,
   getObjectHead,
   isPdfMagic,
@@ -47,11 +56,69 @@ async function assertScopeOwned(
   return true;
 }
 
+/** Opaque per-user PDF key derived from the original file name's extension. */
+function pdfKeyFor(userId: string, fileName: string): string {
+  const ext = fileName.includes(".") ? fileName.split(".").pop()! : "pdf";
+  return objectKey(userId, ext);
+}
+
+/** Create the PENDING_UPLOAD PDF row for a pre-allocated R2 key. */
+async function createPendingPdf(
+  userId: string,
+  key: string,
+  data: RequestUploadInput,
+): Promise<string> {
+  const material = await prisma.material.create({
+    data: {
+      userId,
+      subjectId: data.subjectId,
+      topicId: data.topicId,
+      title: data.title,
+      type: "PDF",
+      r2Key: key,
+      originalName: data.fileName,
+      mimeType: data.contentType,
+      sizeBytes: data.sizeBytes,
+      status: "PENDING_UPLOAD",
+    },
+    select: { id: true },
+  });
+  return material.id;
+}
+
+/** Verify an uploaded object is a non-empty, in-bounds PDF (size + magic bytes). */
+async function verifyPdfObject(
+  r2Key: string,
+): Promise<{ valid: boolean; size: number }> {
+  const head = await headObject(r2Key);
+  const magic = await getObjectHead(r2Key, 8);
+  const size = head?.size ?? 0;
+  const valid =
+    head !== null && size > 0 && size <= MAX_FILE_BYTES && isPdfMagic(magic);
+  return { valid, size };
+}
+
+/** Mark a material READY/FAILED from a verification result and revalidate. */
+async function markVerified(
+  materialId: string,
+  result: { valid: boolean; size: number },
+): Promise<ActionState> {
+  await prisma.material.update({
+    where: { id: materialId },
+    data: {
+      status: result.valid ? "READY" : "FAILED",
+      sizeBytes: result.size || undefined,
+    },
+  });
+  revalidatePath("/materials");
+  return result.valid ? OK : fail("Uploaded file failed validation");
+}
+
 export type RequestUploadResult =
   | { ok: true; materialId: string; uploadUrl: string }
   | { ok: false; error: string };
 
-/** Step 1 of upload: validate, create a PENDING material, return a presigned PUT URL. */
+/** Single-PUT path (small files): create a PENDING material + presigned PUT URL. */
 export async function requestUpload(
   input: RequestUploadInput,
 ): Promise<RequestUploadResult> {
@@ -60,37 +127,126 @@ export async function requestUpload(
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid upload" };
   }
-  const { title, subjectId, topicId, fileName, contentType, sizeBytes } =
-    parsed.data;
+  const { subjectId, topicId, fileName, contentType } = parsed.data;
 
   if (!(await assertScopeOwned(user.id, subjectId, topicId))) {
     return { ok: false, error: "Subject or topic not found" };
   }
 
-  const ext = fileName.includes(".") ? fileName.split(".").pop()! : "pdf";
-  const key = objectKey(user.id, ext);
-
-  const material = await prisma.material.create({
-    data: {
-      userId: user.id,
-      subjectId,
-      topicId,
-      title,
-      type: "PDF",
-      r2Key: key,
-      originalName: fileName,
-      mimeType: contentType,
-      sizeBytes,
-      status: "PENDING_UPLOAD",
-    },
-    select: { id: true },
-  });
-
+  const key = pdfKeyFor(user.id, fileName);
+  const materialId = await createPendingPdf(user.id, key, parsed.data);
   const uploadUrl = await presignUpload(key, contentType);
-  return { ok: true, materialId: material.id, uploadUrl };
+  return { ok: true, materialId, uploadUrl };
 }
 
-/** Step 2 of upload: verify the object in R2 (size + PDF magic) and mark READY/FAILED. */
+export type StartMultipartResult =
+  | {
+      ok: true;
+      materialId: string;
+      uploadId: string;
+      partUrls: string[];
+      partSize: number;
+    }
+  | { ok: false; error: string };
+
+/**
+ * Multipart path (large files): begin the R2 upload, presign one PUT per part,
+ * and only then create the PENDING material so a failed R2 setup leaves no
+ * orphan row. The client uploads the parts and calls completeUpload/abortUpload.
+ */
+export async function startMultipartUpload(
+  input: RequestUploadInput,
+): Promise<StartMultipartResult> {
+  const user = await requireDbUser();
+  const parsed = requestUploadInput.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid upload" };
+  }
+  const { subjectId, topicId, fileName, contentType, sizeBytes } = parsed.data;
+
+  if (!(await assertScopeOwned(user.id, subjectId, topicId))) {
+    return { ok: false, error: "Subject or topic not found" };
+  }
+
+  const key = pdfKeyFor(user.id, fileName);
+  const partCount = Math.max(1, Math.ceil(sizeBytes / MULTIPART_PART_SIZE));
+
+  let uploadId: string;
+  try {
+    uploadId = await createMultipartUpload(key, contentType);
+  } catch {
+    return { ok: false, error: "Could not start the upload. Please try again." };
+  }
+
+  let partUrls: string[];
+  try {
+    partUrls = await Promise.all(
+      Array.from({ length: partCount }, (_, i) =>
+        presignUploadPart(key, uploadId, i + 1),
+      ),
+    );
+  } catch {
+    await abortMultipartUpload(key, uploadId).catch(() => {});
+    return { ok: false, error: "Could not start the upload. Please try again." };
+  }
+
+  const materialId = await createPendingPdf(user.id, key, parsed.data);
+  return { ok: true, materialId, uploadId, partUrls, partSize: MULTIPART_PART_SIZE };
+}
+
+/** Complete a multipart upload, then verify + mark the material READY/FAILED. */
+export async function completeUpload(
+  input: CompleteMultipartInput,
+): Promise<ActionState> {
+  const user = await requireDbUser();
+  const parsed = completeMultipartInput.safeParse(input);
+  if (!parsed.success) {
+    return fail(parsed.error.issues[0]?.message ?? "Invalid request");
+  }
+  const { materialId, uploadId, parts } = parsed.data;
+
+  const material = await prisma.material.findFirst({
+    where: { id: materialId, userId: user.id, type: "PDF" },
+    select: { id: true, r2Key: true },
+  });
+  if (!material?.r2Key) return fail("Material not found");
+
+  try {
+    await completeMultipartUpload(material.r2Key, uploadId, parts);
+  } catch {
+    return fail("Could not finish the upload. Please try again.");
+  }
+
+  return markVerified(material.id, await verifyPdfObject(material.r2Key));
+}
+
+/** Abandon an in-progress multipart upload: abort in R2 and drop the row. */
+export async function abortUpload(
+  input: AbortMultipartInput,
+): Promise<ActionState> {
+  const user = await requireDbUser();
+  const parsed = abortMultipartInput.safeParse(input);
+  if (!parsed.success) return fail("Invalid request");
+  const { materialId, uploadId } = parsed.data;
+
+  const material = await prisma.material.findFirst({
+    where: {
+      id: materialId,
+      userId: user.id,
+      type: "PDF",
+      status: "PENDING_UPLOAD",
+    },
+    select: { id: true, r2Key: true },
+  });
+  if (!material?.r2Key) return OK; // Already cleaned up; abort is idempotent.
+
+  await abortMultipartUpload(material.r2Key, uploadId).catch(() => {});
+  await prisma.material.delete({ where: { id: material.id } }).catch(() => {});
+  revalidatePath("/materials");
+  return OK;
+}
+
+/** Single-PUT finalize: verify the object in R2 and mark READY/FAILED. */
 export async function finalizeUpload(materialId: string): Promise<ActionState> {
   const user = await requireDbUser();
   const material = await prisma.material.findFirst({
@@ -99,20 +255,7 @@ export async function finalizeUpload(materialId: string): Promise<ActionState> {
   });
   if (!material?.r2Key) return fail("Material not found");
 
-  const head = await headObject(material.r2Key);
-  const magic = await getObjectHead(material.r2Key, 8);
-  const valid =
-    head !== null && head.size > 0 && head.size <= MAX_FILE_BYTES && isPdfMagic(magic);
-
-  await prisma.material.update({
-    where: { id: material.id },
-    data: {
-      status: valid ? "READY" : "FAILED",
-      sizeBytes: head?.size ?? undefined,
-    },
-  });
-  revalidatePath("/materials");
-  return valid ? OK : fail("Uploaded file failed validation");
+  return markVerified(material.id, await verifyPdfObject(material.r2Key));
 }
 
 /** Create a typed-note material (no file). */
