@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   materialTypeForContentType,
+  isAudioContentType,
   requestUploadInput,
   UPLOAD_CONTENT_TYPES,
   MAX_FILE_BYTES,
@@ -18,20 +19,46 @@ describe("materialTypeForContentType", () => {
     expect(materialTypeForContentType("image/webp")).toBe("IMAGE");
   });
 
+  it("maps every accepted audio type to AUDIO", () => {
+    expect(materialTypeForContentType("audio/mpeg")).toBe("AUDIO");
+    expect(materialTypeForContentType("audio/wav")).toBe("AUDIO");
+    expect(materialTypeForContentType("audio/x-wav")).toBe("AUDIO");
+    expect(materialTypeForContentType("audio/mp4")).toBe("AUDIO");
+    expect(materialTypeForContentType("audio/x-m4a")).toBe("AUDIO");
+    expect(materialTypeForContentType("audio/ogg")).toBe("AUDIO");
+  });
+
   it("returns null for unsupported types", () => {
     expect(materialTypeForContentType("image/gif")).toBeNull();
+    expect(materialTypeForContentType("audio/flac")).toBeNull();
     expect(materialTypeForContentType("text/plain")).toBeNull();
     expect(materialTypeForContentType("")).toBeNull();
   });
 });
 
+describe("isAudioContentType", () => {
+  it("is true only for accepted audio types", () => {
+    expect(isAudioContentType("audio/mpeg")).toBe(true);
+    expect(isAudioContentType("audio/ogg")).toBe(true);
+    expect(isAudioContentType("application/pdf")).toBe(false);
+    expect(isAudioContentType("image/png")).toBe(false);
+    expect(isAudioContentType("audio/flac")).toBe(false);
+  });
+});
+
 describe("UPLOAD_CONTENT_TYPES", () => {
-  it("is exactly PDF plus the three image types", () => {
+  it("is PDF plus the image and audio types", () => {
     expect([...UPLOAD_CONTENT_TYPES]).toEqual([
       PDF_CONTENT_TYPE,
       "image/png",
       "image/jpeg",
       "image/webp",
+      "audio/mpeg",
+      "audio/wav",
+      "audio/x-wav",
+      "audio/mp4",
+      "audio/x-m4a",
+      "audio/ogg",
     ]);
   });
 });

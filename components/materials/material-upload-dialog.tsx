@@ -23,6 +23,7 @@ import {
   startMultipartUpload,
   completeUpload,
   abortUpload,
+  transcribeAudioAction,
 } from "@/app/(app)/materials/actions";
 import {
   MAX_FILE_BYTES,
@@ -30,14 +31,37 @@ import {
   UPLOAD_ACCEPT_ATTR,
   UPLOAD_CONTENT_TYPES,
   UPLOAD_TYPES_LABEL,
+  AUDIO_SINGLE_CALL_MAX_SEC,
+  AUDIO_SINGLE_CALL_MAX_BYTES,
+  isAudioContentType,
   type UploadContentType,
 } from "@/lib/validations/material";
 import { uploadParts } from "@/lib/storage/multipart-upload";
 
 const MAX_FILE_MB = Math.floor(MAX_FILE_BYTES / (1024 * 1024));
+const AUDIO_MAX_MIN = Math.floor(AUDIO_SINGLE_CALL_MAX_SEC / 60);
+const AUDIO_MAX_MB = Math.floor(AUDIO_SINGLE_CALL_MAX_BYTES / (1024 * 1024));
 
 function isAcceptedType(type: string): type is UploadContentType {
   return (UPLOAD_CONTENT_TYPES as readonly string[]).includes(type);
+}
+
+/** Read an audio clip's duration in seconds (null if the browser can't tell). */
+function readAudioDurationSec(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const audio = document.createElement("audio");
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => {
+      URL.revokeObjectURL(url);
+      resolve(Number.isFinite(audio.duration) ? audio.duration : null);
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    audio.src = url;
+  });
 }
 
 type UploadArgs = {
@@ -58,10 +82,17 @@ export function MaterialUploadDialog({
   // Percent (0-100) during a multipart upload; null when there is no granular
   // progress to show (idle, or the single-PUT fast path).
   const [progress, setProgress] = useState<number | null>(null);
+  // True while an uploaded audio clip is being transcribed by the model.
+  const [transcribing, setTranscribing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  /** Single-PUT fast path for small files. Toasts + returns false on failure. */
-  async function uploadSingle({ title, subjectId, file, contentType }: UploadArgs) {
+  /** Single-PUT fast path for small files. Returns the materialId, or null. */
+  async function uploadSingle({
+    title,
+    subjectId,
+    file,
+    contentType,
+  }: UploadArgs): Promise<string | null> {
     const res = await requestUpload({
       title,
       subjectId,
@@ -71,7 +102,7 @@ export function MaterialUploadDialog({
     });
     if (!res.ok) {
       toast.error(res.error);
-      return false;
+      return null;
     }
     const put = await fetch(res.uploadUrl, {
       method: "PUT",
@@ -80,18 +111,23 @@ export function MaterialUploadDialog({
     });
     if (!put.ok) {
       toast.error("Upload failed. Please try again.");
-      return false;
+      return null;
     }
     const fin = await finalizeUpload(res.materialId);
     if (!fin.ok) {
       toast.error(fin.error ?? "File failed validation");
-      return false;
+      return null;
     }
-    return true;
+    return res.materialId;
   }
 
-  /** Resumable multipart path for large files. Aborts the upload on failure. */
-  async function uploadMultipart({ title, subjectId, file, contentType }: UploadArgs) {
+  /** Resumable multipart path for large files. Returns the materialId, or null. */
+  async function uploadMultipart({
+    title,
+    subjectId,
+    file,
+    contentType,
+  }: UploadArgs): Promise<string | null> {
     const res = await startMultipartUpload({
       title,
       subjectId,
@@ -101,7 +137,7 @@ export function MaterialUploadDialog({
     });
     if (!res.ok) {
       toast.error(res.error);
-      return false;
+      return null;
     }
     setProgress(0);
     try {
@@ -119,16 +155,16 @@ export function MaterialUploadDialog({
       });
       if (!fin.ok) {
         toast.error(fin.error ?? "File failed validation");
-        return false;
+        return null;
       }
-      return true;
+      return res.materialId;
     } catch {
       await abortUpload({
         materialId: res.materialId,
         uploadId: res.uploadId,
       }).catch(() => {});
       toast.error("Upload failed. Please try again.");
-      return false;
+      return null;
     }
   }
 
@@ -141,20 +177,47 @@ export function MaterialUploadDialog({
 
     if (!file) return toast.error("Choose a file to upload");
     if (!isAcceptedType(file.type))
-      return toast.error("Only PDF, PNG, JPEG, or WebP files are supported");
+      return toast.error("Only PDF, image, or audio files are supported");
     if (file.size > MAX_FILE_BYTES)
       return toast.error(`File must be ${MAX_FILE_MB} MB or less`);
+
+    const isAudio = isAudioContentType(file.type);
+    if (isAudio) {
+      // Single-call transcription must fit the function budget, so cap length.
+      if (file.size > AUDIO_SINGLE_CALL_MAX_BYTES)
+        return toast.error(
+          `Audio must be ${AUDIO_MAX_MB} MB or less for now (longer audio is coming)`,
+        );
+      const duration = await readAudioDurationSec(file);
+      if (duration !== null && duration > AUDIO_SINGLE_CALL_MAX_SEC)
+        return toast.error(
+          `Audio must be ${AUDIO_MAX_MIN} minutes or less for now (longer audio is coming)`,
+        );
+    }
 
     setBusy(true);
     setProgress(null);
     try {
       const args: UploadArgs = { title, subjectId, file, contentType: file.type };
-      const ok =
+      const materialId =
         file.size > MULTIPART_THRESHOLD
           ? await uploadMultipart(args)
           : await uploadSingle(args);
-      if (!ok) return;
-      toast.success("Material uploaded");
+      if (!materialId) return;
+
+      if (isAudio) {
+        setTranscribing(true);
+        const t = await transcribeAudioAction(materialId);
+        setTranscribing(false);
+        if (t.ok) {
+          toast.success("Audio uploaded and transcribed");
+        } else {
+          // The file is saved (marked failed); the material page offers a retry.
+          toast.error(t.error ?? "Could not transcribe the audio");
+        }
+      } else {
+        toast.success("Material uploaded");
+      }
       setOpen(false);
       router.refresh();
     } catch {
@@ -162,21 +225,24 @@ export function MaterialUploadDialog({
     } finally {
       setBusy(false);
       setProgress(null);
+      setTranscribing(false);
     }
   }
 
-  const buttonLabel = busy
-    ? progress !== null
-      ? `Uploading ${progress}%`
-      : "Uploading…"
-    : "Upload";
+  const buttonLabel = transcribing
+    ? "Transcribing…"
+    : busy
+      ? progress !== null
+        ? `Uploading ${progress}%`
+        : "Uploading…"
+      : "Upload";
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        // Don't let the dialog close mid-upload and orphan an in-flight upload.
-        if (!busy) setOpen(next);
+        // Don't let the dialog close mid-upload/transcription and orphan it.
+        if (!busy && !transcribing) setOpen(next);
       }}
     >
       <DialogTrigger
@@ -243,7 +309,7 @@ export function MaterialUploadDialog({
             )}
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={busy}>
+            <Button type="submit" disabled={busy || transcribing}>
               {buttonLabel}
             </Button>
           </DialogFooter>

@@ -16,11 +16,13 @@ datasource db {
 enum MaterialType {
   PDF
   IMAGE
+  AUDIO
   NOTE
 }
 
 enum MaterialStatus {
   PENDING_UPLOAD
+  TRANSCRIBING
   READY
   FAILED
 }
@@ -137,6 +139,8 @@ model Material {
   checksum     String?
   // Note materials:
   noteText     String?        @db.Text
+  // Audio materials: the model-generated transcript used as the text content.
+  transcript   String?        @db.Text
   status       MaterialStatus @default(PENDING_UPLOAD)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt

@@ -33,6 +33,7 @@ export async function loadMaterialForAI(
       r2Key: true,
       mimeType: true,
       noteText: true,
+      transcript: true,
       subjectId: true,
       topicId: true,
     },
@@ -42,6 +43,16 @@ export async function loadMaterialForAI(
   if (m.type === "NOTE") {
     return {
       content: { title: m.title, noteText: m.noteText },
+      subjectId: m.subjectId,
+      topicId: m.topicId,
+    };
+  }
+
+  // Audio: the transcript is the text content (the audio is not re-sent).
+  if (m.type === "AUDIO") {
+    if (m.status !== "READY" || !m.transcript) return null;
+    return {
+      content: { title: m.title, noteText: m.transcript },
       subjectId: m.subjectId,
       topicId: m.topicId,
     };

@@ -11,16 +11,36 @@ export const IMAGE_CONTENT_TYPES = [
   "image/webp",
 ] as const;
 
-/** Every content type the upload pipeline accepts (PDF + images). */
+/** Accepted audio content types (transcribed to text by the model). */
+export const AUDIO_CONTENT_TYPES = [
+  "audio/mpeg", // mp3
+  "audio/wav",
+  "audio/x-wav",
+  "audio/mp4", // m4a
+  "audio/x-m4a",
+  "audio/ogg",
+] as const;
+
+/** Every content type the upload pipeline accepts (PDF + images + audio). */
 export const UPLOAD_CONTENT_TYPES = [
   PDF_CONTENT_TYPE,
   ...IMAGE_CONTENT_TYPES,
+  ...AUDIO_CONTENT_TYPES,
 ] as const;
 export type UploadContentType = (typeof UPLOAD_CONTENT_TYPES)[number];
 
 /** The accept attribute for the file input + a human label for the dialog. */
 export const UPLOAD_ACCEPT_ATTR = UPLOAD_CONTENT_TYPES.join(",");
-export const UPLOAD_TYPES_LABEL = "PDF or image (PNG, JPEG, WebP)";
+export const UPLOAD_TYPES_LABEL = "PDF, image, or audio";
+
+/**
+ * Single-call audio limits. Until time-chunking lands, audio is transcribed in
+ * one server call, so it must be short enough to finish inside the function's
+ * 300s budget. The byte cap is a backstop for when the browser cannot read the
+ * clip's duration.
+ */
+export const AUDIO_SINGLE_CALL_MAX_SEC = 20 * 60; // 20 minutes
+export const AUDIO_SINGLE_CALL_MAX_BYTES = 40 * 1024 * 1024; // 40 MB
 
 /** Map an upload content type to its stored MaterialType (null if unsupported). */
 export function materialTypeForContentType(
@@ -30,7 +50,15 @@ export function materialTypeForContentType(
   if ((IMAGE_CONTENT_TYPES as readonly string[]).includes(contentType)) {
     return "IMAGE";
   }
+  if ((AUDIO_CONTENT_TYPES as readonly string[]).includes(contentType)) {
+    return "AUDIO";
+  }
   return null;
+}
+
+/** True for an accepted audio content type. */
+export function isAudioContentType(contentType: string): boolean {
+  return (AUDIO_CONTENT_TYPES as readonly string[]).includes(contentType);
 }
 
 /**

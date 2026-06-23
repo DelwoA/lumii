@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText, PenLine, Image as ImageIcon } from "lucide-react";
+import { FileText, PenLine, Image as ImageIcon, Music } from "lucide-react";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 const STATUS_LABEL = {
   PENDING_UPLOAD: "Pending",
+  TRANSCRIBING: "Transcribing",
   READY: "Ready",
   FAILED: "Failed",
 } as const;
@@ -38,7 +39,8 @@ export default async function MaterialsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Materials</h1>
           <p className="text-muted-foreground text-sm">
-            Upload PDFs or images, or paste notes, then summarise, quiz, and chat.
+            Upload PDFs, images, or audio, or paste notes, then summarise, quiz,
+            and chat.
           </p>
         </div>
         <div className="flex gap-2">
@@ -52,7 +54,8 @@ export default async function MaterialsPage() {
           <LumenSpark className="size-10 opacity-80" />
           <p className="font-medium">No materials yet</p>
           <p className="text-muted-foreground max-w-sm text-sm">
-            Upload a PDF or image, or add a typed note to get started.
+            Upload a PDF, image, or audio file, or add a typed note to get
+            started.
           </p>
         </div>
       ) : (
@@ -66,6 +69,8 @@ export default async function MaterialsPage() {
                       <FileText className="size-4" />
                     ) : m.type === "IMAGE" ? (
                       <ImageIcon className="size-4" />
+                    ) : m.type === "AUDIO" ? (
+                      <Music className="size-4" />
                     ) : (
                       <PenLine className="size-4" />
                     )}

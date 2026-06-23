@@ -43,6 +43,51 @@ export function isWebpMagic(bytes: Uint8Array | null): boolean {
   );
 }
 
+/** True for an MP3 (ID3 tag or an MPEG audio frame sync). */
+export function isMp3Magic(bytes: Uint8Array | null): boolean {
+  if (!bytes || bytes.length < 3) return false;
+  const id3 = bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33; // "ID3"
+  const frameSync = bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0;
+  return id3 || frameSync;
+}
+
+/** True for a WAV container (RIFF....WAVE). */
+export function isWavMagic(bytes: Uint8Array | null): boolean {
+  if (!bytes || bytes.length < 12) return false;
+  return (
+    bytes[0] === 0x52 && // R
+    bytes[1] === 0x49 && // I
+    bytes[2] === 0x46 && // F
+    bytes[3] === 0x46 && // F
+    bytes[8] === 0x57 && // W
+    bytes[9] === 0x41 && // A
+    bytes[10] === 0x56 && // V
+    bytes[11] === 0x45 // E
+  );
+}
+
+/** True for an MP4/M4A container (a "ftyp" box at offset 4). */
+export function isM4aMagic(bytes: Uint8Array | null): boolean {
+  if (!bytes || bytes.length < 8) return false;
+  return (
+    bytes[4] === 0x66 && // f
+    bytes[5] === 0x74 && // t
+    bytes[6] === 0x79 && // y
+    bytes[7] === 0x70 // p
+  );
+}
+
+/** True for an Ogg container (OggS). */
+export function isOggMagic(bytes: Uint8Array | null): boolean {
+  if (!bytes || bytes.length < 4) return false;
+  return (
+    bytes[0] === 0x4f && // O
+    bytes[1] === 0x67 && // g
+    bytes[2] === 0x67 && // g
+    bytes[3] === 0x53 // S
+  );
+}
+
 /** True if the leading bytes match the magic number expected for the mime type. */
 export function matchesMagic(
   mimeType: string,
@@ -57,6 +102,16 @@ export function matchesMagic(
       return isJpegMagic(bytes);
     case "image/webp":
       return isWebpMagic(bytes);
+    case "audio/mpeg":
+      return isMp3Magic(bytes);
+    case "audio/wav":
+    case "audio/x-wav":
+      return isWavMagic(bytes);
+    case "audio/mp4":
+    case "audio/x-m4a":
+      return isM4aMagic(bytes);
+    case "audio/ogg":
+      return isOggMagic(bytes);
     default:
       return false;
   }

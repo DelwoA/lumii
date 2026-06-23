@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import type { MaterialType } from "@prisma/client";
+import type { MaterialType, MaterialStatus } from "@prisma/client";
 import {
   requestUploadInput,
   completeMultipartInput,
@@ -25,9 +25,11 @@ import {
   abortMultipartUpload,
   headObject,
   getObjectHead,
+  getObjectBytes,
   matchesMagic,
   deleteObject,
 } from "@/lib/storage/r2";
+import { transcribeAudio } from "@/lib/ai/transcribe";
 import type { ActionState } from "@/lib/forms";
 
 const OK: ActionState = { ok: true };
@@ -59,7 +61,7 @@ async function assertScopeOwned(
 }
 
 /** Only file materials (not notes) participate in the R2 upload flow. */
-const FILE_TYPES: MaterialType[] = ["PDF", "IMAGE"];
+const FILE_TYPES: MaterialType[] = ["PDF", "IMAGE", "AUDIO"];
 
 /** Opaque per-user object key derived from the original file name's extension. */
 function fileKeyFor(userId: string, fileName: string): string {
@@ -111,15 +113,21 @@ async function verifyFileObject(
   return { valid, size };
 }
 
-/** Mark a material READY/FAILED from a verification result and revalidate. */
+/**
+ * Mark a material from a verification result and revalidate. A valid file
+ * becomes READY, except audio, which becomes TRANSCRIBING (its transcript is
+ * produced by a follow-up call before it is usable).
+ */
 async function markVerified(
   materialId: string,
+  type: MaterialType,
   result: { valid: boolean; size: number },
 ): Promise<ActionState> {
+  const validStatus: MaterialStatus = type === "AUDIO" ? "TRANSCRIBING" : "READY";
   await prisma.material.update({
     where: { id: materialId },
     data: {
-      status: result.valid ? "READY" : "FAILED",
+      status: result.valid ? validStatus : "FAILED",
       sizeBytes: result.size || undefined,
     },
   });
@@ -226,7 +234,7 @@ export async function completeUpload(
 
   const material = await prisma.material.findFirst({
     where: { id: materialId, userId: user.id, type: { in: FILE_TYPES } },
-    select: { id: true, r2Key: true, mimeType: true },
+    select: { id: true, type: true, r2Key: true, mimeType: true },
   });
   if (!material?.r2Key) return fail("Material not found");
 
@@ -238,6 +246,7 @@ export async function completeUpload(
 
   return markVerified(
     material.id,
+    material.type,
     await verifyFileObject(material.r2Key, material.mimeType),
   );
 }
@@ -273,14 +282,73 @@ export async function finalizeUpload(materialId: string): Promise<ActionState> {
   const user = await requireDbUser();
   const material = await prisma.material.findFirst({
     where: { id: materialId, userId: user.id, type: { in: FILE_TYPES } },
-    select: { id: true, r2Key: true, mimeType: true },
+    select: { id: true, type: true, r2Key: true, mimeType: true },
   });
   if (!material?.r2Key) return fail("Material not found");
 
   return markVerified(
     material.id,
+    material.type,
     await verifyFileObject(material.r2Key, material.mimeType),
   );
+}
+
+/**
+ * Transcribe an uploaded audio material with the model and mark it READY. Used
+ * both right after upload and as a retry from the material page (e.g. if the
+ * first attempt was interrupted). Runs in one server call, so it relies on the
+ * client-side length cap to stay within the function budget.
+ */
+export async function transcribeAudioAction(
+  materialId: string,
+): Promise<ActionState> {
+  const user = await requireDbUser();
+  const material = await prisma.material.findFirst({
+    where: {
+      id: materialId,
+      userId: user.id,
+      type: "AUDIO",
+      status: { in: ["TRANSCRIBING", "FAILED"] },
+    },
+    select: { id: true, r2Key: true, mimeType: true },
+  });
+  if (!material?.r2Key) return fail("Audio not found");
+
+  // Mark transcribing (covers a retry from FAILED) before the slow model call.
+  await prisma.material.update({
+    where: { id: material.id },
+    data: { status: "TRANSCRIBING" },
+  });
+
+  const bytes = await getObjectBytes(material.r2Key);
+  if (!bytes) {
+    await prisma.material.update({
+      where: { id: material.id },
+      data: { status: "FAILED" },
+    });
+    return fail("Could not read the audio file");
+  }
+
+  try {
+    const { text } = await transcribeAudio({
+      fileBytes: bytes,
+      mimeType: material.mimeType ?? "audio/mpeg",
+    });
+    if (!text) throw new Error("Empty transcript");
+    await prisma.material.update({
+      where: { id: material.id },
+      data: { status: "READY", transcript: text },
+    });
+    revalidatePath("/materials");
+    revalidatePath(`/materials/${material.id}`);
+    return OK;
+  } catch {
+    await prisma.material.update({
+      where: { id: material.id },
+      data: { status: "FAILED" },
+    });
+    return fail("Could not transcribe the audio. Please try again.");
+  }
 }
 
 /** Create a typed-note material (no file). */
