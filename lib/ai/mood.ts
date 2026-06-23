@@ -20,10 +20,14 @@ const moodSchema = z.object({
 
 const CONFIDENCE_FLOOR = 0.5;
 
-const MOOD_SYSTEM = `You classify a student's short study check-in into exactly one mood label: MOTIVATED, NEUTRAL, TIRED, STRESSED, or FRUSTRATED.
-- Judge only the study-related feeling expressed.
-- This is a wellbeing signal, not a clinical assessment; never diagnose.
-- If the text is ambiguous, empty of feeling, or off-topic, return NEUTRAL with low confidence.
+const MOOD_SYSTEM = `You are a careful classifier. Read a student's short study check-in and label their study-related mood as exactly one of: MOTIVATED, NEUTRAL, TIRED, STRESSED, FRUSTRATED.
+
+Guidance:
+- Judge only the feeling about studying that the text expresses, not the subject they mention.
+- MOTIVATED: energised, eager, confident. TIRED: low energy, sleepy, drained. STRESSED: anxious, overwhelmed, under time pressure. FRUSTRATED: stuck, annoyed, things not working. NEUTRAL: calm, matter-of-fact, or no clear feeling.
+- Be conservative: if the text is ambiguous, mixed, empty of feeling, or off-topic, return NEUTRAL with low confidence.
+- Set "confidence" honestly between 0 and 1 based on how clearly one mood dominates.
+- This is a wellbeing signal, not a clinical or medical assessment; never diagnose.
 - Output only the schema fields.`;
 
 /**
