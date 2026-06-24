@@ -1,3 +1,15 @@
+// =============================================================================
+// FILE: lib/stores/session-store.ts
+// WHAT THIS FILE DOES:
+//   A small shared "store" (built with Zustand) that remembers the one running
+//   study session in the BROWSER, so different parts of the screen stay in sync:
+//   the "Start session" button, the running-session bar with its live timer, and
+//   the timetable's start buttons all read and update this single place.
+//
+//   It calls the server actions to start/stop/heartbeat the session and keeps
+//   the current state (active session, whether it is starting/stopping). The
+//   "use client" line at the top marks this as browser code.
+// =============================================================================
 "use client";
 
 import { create } from "zustand";

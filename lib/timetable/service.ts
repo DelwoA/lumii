@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: lib/timetable/service.ts
+// WHAT THIS FILE DOES:
+//   The back-end logic for the Timetable: creating, editing, listing, and
+//   cancelling planned study sessions, all owner-scoped to the signed-in user.
+//   It records each planned session with its local calendar date (using
+//   ./dates) so streaks and adherence line up with the student's own day.
+// =============================================================================
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";

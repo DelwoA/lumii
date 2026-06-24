@@ -1,5 +1,14 @@
 "use client"
 
+// =============================================================================
+// FILE: components/ui/radio-group.tsx  (shadcn/ui primitive: generated, then themed)
+// WHAT THIS IS: A set of radio options where exactly one is chosen.
+//   It is a reusable interface building block added from the shadcn/ui library
+//   and themed for LUMII. It is shared across many screens, so change with care.
+// HOW TO RESTYLE: the look comes from the Tailwind classes (and the variant
+//   definitions) in this file; editing them restyles every RadioGroup in the app.
+// =============================================================================
+
 import { Radio as RadioPrimitive } from "@base-ui/react/radio"
 import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group"
 

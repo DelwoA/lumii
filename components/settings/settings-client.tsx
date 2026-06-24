@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: components/settings/settings-client.tsx
+// WHAT THIS FILE DOES:
+//   The interactive Settings forms (browser side). It holds the typed values
+//   and Save buttons for the profile, the public showcase, and the privacy
+//   controls, and calls the matching server actions when saved. The page that
+//   loads the initial values is app/(app)/settings/page.tsx.
+// =============================================================================
 "use client";
 
 import { useState } from "react";

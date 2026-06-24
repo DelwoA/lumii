@@ -1,5 +1,14 @@
 "use client"
 
+// =============================================================================
+// FILE: components/ui/checkbox.tsx  (shadcn/ui primitive: generated, then themed)
+// WHAT THIS IS: A tick box.
+//   It is a reusable interface building block added from the shadcn/ui library
+//   and themed for LUMII. It is shared across many screens, so change with care.
+// HOW TO RESTYLE: the look comes from the Tailwind classes (and the variant
+//   definitions) in this file; editing them restyles every Checkbox in the app.
+// =============================================================================
+
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"
 
 import { cn } from "@/lib/utils"

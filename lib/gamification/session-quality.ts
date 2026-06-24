@@ -1,3 +1,26 @@
+// =============================================================================
+// FILE: lib/gamification/session-quality.ts
+// WHAT THIS FILE DOES:
+//   Works out the "Session Quality" score (out of 100) shown after a study
+//   session. IMPORTANT for the viva: this measures STUDY HABITS, not how clever
+//   the student is or how much they learned. It is fully deterministic (the same
+//   inputs always give the same score), so it is fair and explainable.
+//
+// THE 100 POINTS ARE MADE OF:
+//   - up to 40: how close the time studied was to the planned target.
+//   - 15: the student pressed Stop themselves (not auto-closed).
+//   - 15: the student ticked that they met their goal.
+//   - up to 30: bounded in-session activity (viewing summaries, tutor questions,
+//     quiz attempts, explanations reviewed), each capped so it cannot be farmed.
+//
+// HOW TO CHANGE: edit the caps in ENGAGEMENT_CAPS or the point values in
+//   computeSessionQuality, and bump SESSION_QUALITY_VERSION so older scores stay
+//   labelled with the rules that produced them.
+//
+// Only sessions of at least MIN_SCORED_DURATION_SEC (10 minutes) are scored.
+// Pure maths (no database); unit-tested in session-quality.test.ts.
+// =============================================================================
+
 /**
  * Session Quality = a deterministic product-engagement + session-discipline
  * score out of 100. It is NOT a measure of learning, attention, or ability.

@@ -1,9 +1,17 @@
-/**
- * Split text into overlapping chunks for embedding/retrieval. Pure and
- * dependency-free so it can be unit-tested directly. Chunks are sized by
- * characters (a cheap proxy for tokens) and prefer to break on a paragraph,
- * line, sentence, or word boundary near the target size to keep them coherent.
- */
+// =============================================================================
+// FILE: lib/rag/chunk.ts   ("rag" = retrieval-augmented generation, the smart
+//                            search that powers the tutor.)
+// WHAT THIS FILE DOES:
+//   Splits a long piece of text (a note or an audio transcript) into smaller,
+//   overlapping "chunks". We do this because smart search works best on small
+//   pieces: each chunk later gets turned into numbers (an embedding) so the
+//   tutor can find the few most relevant pieces for a question.
+//
+//   The chunks slightly overlap (the "overlap" setting) so an idea split across
+//   a boundary is not lost. It also tries to cut at a natural break (a paragraph,
+//   line, sentence, or word) rather than mid-word. Pure logic, unit-tested in
+//   chunk.test.ts.
+// =============================================================================
 export interface ChunkOptions {
   maxChars?: number;
   overlap?: number;

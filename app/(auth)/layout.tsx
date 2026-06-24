@@ -1,3 +1,10 @@
+// =============================================================================
+// FILE: app/(auth)/layout.tsx   (the SIGN-IN / SIGN-UP frame)
+// WHAT THIS FILE DOES:
+//   The (auth) route group holds the sign-in and sign-up pages. This layout
+//   wraps them with a simple centered frame and the LUMII logo. The actual
+//   sign-in/up boxes are provided by Clerk; this just frames them nicely.
+// =============================================================================
 import Link from "next/link";
 import { LumenSpark } from "@/components/lumen-spark";
 

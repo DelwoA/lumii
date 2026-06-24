@@ -1,5 +1,14 @@
 "use client"
 
+// =============================================================================
+// FILE: components/ui/sidebar.tsx  (shadcn/ui primitive: generated, then themed)
+// WHAT THIS IS: The collapsible sidebar framework (the structure; LUMII's own menu items live in components/app-sidebar.tsx).
+//   It is a reusable interface building block added from the shadcn/ui library
+//   and themed for LUMII. It is shared across many screens, so change with care.
+// HOW TO RESTYLE: the look comes from the Tailwind classes (and the variant
+//   definitions) in this file; editing them restyles every Sidebar in the app.
+// =============================================================================
+
 import * as React from "react"
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"

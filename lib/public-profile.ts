@@ -1,3 +1,14 @@
+// =============================================================================
+// FILE: lib/public-profile.ts
+// WHAT THIS FILE DOES:
+//   Powers the OPTIONAL public showcase page at /u/<handle>. It builds the
+//   PUBLIC view of a profile, which deliberately includes ONLY safe, chosen
+//   fields: display name, rank, trophies, and (optionally) total points. It
+//   never exposes materials, quizzes, timetable, sessions, or mood.
+//
+//   If the profile is switched off, the lookup returns nothing so the page shows
+//   "not found". normalizeHandle + HANDLE_RE keep handles consistent and valid.
+// =============================================================================
 import "server-only";
 import type { Rank } from "@prisma/client";
 import { prisma } from "@/lib/prisma";

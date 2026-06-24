@@ -1,7 +1,13 @@
-/**
- * Pure validation/ordering for an OpenAI-compatible embeddings response. Kept
- * dependency-free (no server-only imports) so it can be unit-tested directly.
- */
+// =============================================================================
+// FILE: lib/rag/embed-response.ts
+// WHAT THIS FILE DOES:
+//   When we ask the AI service to turn several chunks into embeddings (lists of
+//   numbers), the reply can come back out of order. This file checks that reply
+//   and puts the embeddings back in the right order, while making sure none are
+//   missing, duplicated, or the wrong size. If anything is off, it throws an
+//   error rather than storing bad data. Pure logic, unit-tested in
+//   embed-response.test.ts.
+// =============================================================================
 export interface EmbeddingDatum {
   index?: number;
   embedding?: number[];

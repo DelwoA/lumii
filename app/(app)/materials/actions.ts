@@ -1,5 +1,18 @@
 "use server";
 
+// =============================================================================
+// FILE: app/(app)/materials/actions.ts
+// WHAT THIS FILE DOES:
+//   "Server actions" for materials. The "use server" line at the very top means
+//   every exported function here runs ON THE SERVER but can be called directly
+//   from the browser, like a safe remote function.
+//
+//   These handle the upload flow (ask for a secure upload link, then confirm and
+//   check the finished file is genuine), creating typed notes, and deleting
+//   materials. Each begins with requireDbUser() so only the signed-in owner can
+//   act, and calls revalidatePath() afterwards so the page shows fresh data.
+// =============================================================================
+
 import { revalidatePath } from "next/cache";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";

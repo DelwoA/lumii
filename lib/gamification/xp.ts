@@ -1,3 +1,23 @@
+// =============================================================================
+// FILE: lib/gamification/xp.ts
+// WHAT THIS FILE DOES:
+//   The rulebook for how many points (XP, short for experience points) each
+//   action is worth, plus the small maths that works out a points award.
+//   Keeping every number in ONE place makes the reward system easy to tune and
+//   easy to defend (nothing is hidden or random).
+//
+// HOW TO CHANGE THE REWARDS:
+//   Edit the numbers in XP_RULES below. For example, raise DAILY_CAP to let
+//   students earn more per day, or QUIZ_PER_CORRECT to reward quizzes more.
+//
+// ANTI-GAMING:
+//   Awards are fixed and capped (there is a maximum per quiz and a maximum per
+//   day) so points cannot be farmed by repeating an action endlessly.
+//
+// These functions are pure maths (no database), which is why they are easy to
+// unit-test (see xp.test.ts).
+// =============================================================================
+
 /** XP awards. Fixed + capped to keep gamification meaningful (anti-gaming). */
 export const XP_RULES = {
   QUIZ_COMPLETED_BASE: 10,

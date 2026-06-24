@@ -1,3 +1,10 @@
+// =============================================================================
+// FILE: components/marketing/reveal.tsx
+// WHAT THIS FILE DOES:
+//   A small wrapper used on the landing page that gently fades and slides its
+//   contents up as they scroll into view. It respects "reduced motion" settings
+//   (then it just shows the content with no animation).
+// =============================================================================
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";

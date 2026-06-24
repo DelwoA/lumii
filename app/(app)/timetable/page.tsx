@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: app/(app)/timetable/page.tsx   ->   web address: /timetable
+// WHAT THIS FILE DOES:
+//   The Timetable page. It loads the student's planned sessions and subject list
+//   on the server, then hands them to the interactive TimetableClient component
+//   (month/week views and the create/edit form). Splitting it this way keeps the
+//   data-loading on the server and the clicking/typing in the browser.
+// =============================================================================
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { listScheduled } from "@/lib/timetable/service";

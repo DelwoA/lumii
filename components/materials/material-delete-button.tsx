@@ -1,3 +1,10 @@
+// =============================================================================
+// FILE: components/materials/material-delete-button.tsx
+// WHAT THIS FILE DOES:
+//   The Delete button on a material's detail page. It opens a confirm dialog and,
+//   when confirmed, calls the delete-material server action and returns the user
+//   to the materials list.
+// =============================================================================
 "use client";
 
 import { useState } from "react";

@@ -1,3 +1,12 @@
+// =============================================================================
+// FILE: app/u/[handle]/page.tsx   ->   web address: /u/<handle>
+// WHAT THIS FILE DOES:
+//   The OPTIONAL public showcase page. It is OUTSIDE the (app) group, so it does
+//   not require sign-in: anyone with the link can view it. The [handle] is the
+//   person's chosen page name. It shows ONLY safe fields (name, rank, trophies,
+//   optional points). If the profile is private or the handle is unknown, it
+//   shows the not-found page. Private study data is never shown here.
+// =============================================================================
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";

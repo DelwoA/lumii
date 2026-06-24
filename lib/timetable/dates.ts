@@ -1,3 +1,12 @@
+// =============================================================================
+// FILE: lib/timetable/dates.ts
+// WHAT THIS FILE DOES:
+//   Handles dates correctly across time zones. "What day is it" depends on where
+//   the student is: 11pm in Sri Lanka can already be the next day in UTC. Because
+//   streaks and adherence are counted per local day, these helpers work out the
+//   student's LOCAL calendar date reliably (using the built-in Intl tools) rather
+//   than trusting the server's clock. Pure logic, unit-tested in dates.test.ts.
+// =============================================================================
 /**
  * Timezone-aware day-boundary helpers. Streak/adherence logic groups planned
  * sessions by their LOCAL calendar date in the user's timezone, so we derive

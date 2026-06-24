@@ -1,5 +1,14 @@
 "use client"
 
+// =============================================================================
+// FILE: components/ui/dialog.tsx  (shadcn/ui primitive: generated, then themed)
+// WHAT THIS IS: A pop-up window (a modal) used for forms and details.
+//   It is a reusable interface building block added from the shadcn/ui library
+//   and themed for LUMII. It is shared across many screens, so change with care.
+// HOW TO RESTYLE: the look comes from the Tailwind classes (and the variant
+//   definitions) in this file; editing them restyles every Dialog in the app.
+// =============================================================================
+
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 

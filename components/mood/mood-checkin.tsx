@@ -1,3 +1,12 @@
+// =============================================================================
+// FILE: components/mood/mood-checkin.tsx
+// WHAT THIS FILE DOES:
+//   The mood check-in box on the Dashboard. The student types how studying feels
+//   and presses "Check in"; it calls the logMood server action, then shows a
+//   short acknowledgement (the AI heading + mood + a supportive line). "use
+//   client" because it handles typing and button clicks.
+//   STYLE: the example placeholder text is the PLACEHOLDER constant below.
+// =============================================================================
 "use client";
 
 import { useState } from "react";

@@ -1,3 +1,20 @@
+// =============================================================================
+// FILE: lib/gamification/trophies.ts
+// WHAT THIS FILE DOES:
+//   The full list (catalogue) of every trophy a student can earn. Each trophy
+//   has a name, a description, an icon, the points it gives, and a `check`
+//   function that returns true once the student has earned it.
+//
+// HOW TO ADD A NEW TROPHY:
+//   Add an entry to the TROPHIES list below with a unique `code`, a `name`, a
+//   `description`, an `icon` name (from the lucide-react icon set), the `xp` it
+//   awards, and a `check` that reads the student's stats. That is all; the
+//   rewards manager (service.ts) will unlock it automatically when earned.
+//
+// This is plain data with no database, so it is safe to use in the browser too
+// (the Achievements page reads it to draw locked/unlocked trophies).
+// =============================================================================
+
 /**
  * Trophy catalog (pure data, safe to import on the client for rendering).
  * Each trophy is unlocked when its `check` passes over the user's aggregate

@@ -1,3 +1,21 @@
+/* ============================================================================
+   FILE: app/globals.css
+   WHAT THIS FILE DOES:
+     The app's global styling and, importantly, its COLOUR PALETTE. The theme
+     colours (background, foreground, the lime "primary" accent, borders, and so
+     on) are defined here as CSS variables.
+
+   HOW TO CHANGE A COLOUR (e.g. the accent/button colour):
+     - Search this file for "--primary" to find the main accent colour, and
+       "--background" / "--foreground" for the base colours.
+     - The values under ":root" are the light theme; the ones under ".dark" are
+       the dark theme (LUMII runs in dark). Edit the matching one.
+     - Because shadcn components use these variables, changing a value here
+       updates that colour everywhere at once.
+
+   This file also sets the finger (pointer) cursor on clickable elements near
+   the bottom (search "cursor: pointer").
+   ============================================================================ */
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";

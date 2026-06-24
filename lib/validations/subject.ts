@@ -1,3 +1,12 @@
+// =============================================================================
+// FILE: lib/validations/subject.ts
+// WHAT THIS FILE DOES:
+//   The rules (using Zod) for creating or editing a subject and a topic: the
+//   name must be present and a sensible length, and the colour must be one of
+//   the preset choices. Shared by the create/edit dialogs and the server.
+//
+// HOW TO CHANGE: edit SUBJECT_COLORS below to change the colour swatches offered.
+// =============================================================================
 import { z } from "zod";
 
 /** Preset subject colours (the first is the Lumen lime accent). */

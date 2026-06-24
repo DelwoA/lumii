@@ -1,3 +1,20 @@
+// =============================================================================
+// FILE: lib/ai/quiz.ts
+// WHAT THIS FILE DOES:
+//   Generates a five-question multiple-choice quiz from a material. Unlike a
+//   summary (free text), a quiz must have a strict shape, so we use Zod to
+//   describe and check it: exactly 5 questions, each with 4 options, one correct
+//   index (0 to 3), and an explanation. If the model returns the wrong shape,
+//   the AI toolkit retries.
+//
+// THE INSTRUCTION ("prompt"):
+//   QUIZ_SYSTEM below tells the model how to write good questions (cover the
+//   material, vary difficulty, plausible wrong answers, no trick wording). Edit
+//   it to change quiz style, and bump QUIZ_GENERATION_VERSION when you do.
+//
+// SECURITY NOTE: the correct answers produced here are NOT sent to the browser
+//   until the student submits. That is handled by lib/quiz/token.ts.
+// =============================================================================
 import "server-only";
 import { generateObject } from "ai";
 import { z } from "zod";

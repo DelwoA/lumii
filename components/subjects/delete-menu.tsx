@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: components/subjects/delete-menu.tsx
+// WHAT THIS FILE DOES:
+//   The "..." menu on a subject or topic that offers Delete. Clicking Delete
+//   opens a confirm dialog (which clearly says materials are kept), then calls
+//   the delete server action and refreshes the page (or redirects). Reused for
+//   both subjects and topics via its `kind` prop.
+// =============================================================================
 "use client";
 
 import { useState } from "react";

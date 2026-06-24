@@ -1,3 +1,20 @@
+// =============================================================================
+// FILE: app/layout.tsx  (the ROOT LAYOUT)
+// WHAT THIS FILE DOES:
+//   In Next.js, the `app/` folder holds all the pages. A file named layout.tsx
+//   wraps every page beneath it. THIS root layout wraps the ENTIRE app, so the
+//   code here runs on every single screen (landing page, sign-in, dashboard...).
+//
+//   It sets up three app-wide things:
+//     1. The <html>/<body> shell, the page fonts, and dark mode.
+//     2. ClerkProvider  -> makes sign-in/accounts available everywhere.
+//     3. ThemeProvider + Toaster -> dark theme + the little pop-up messages.
+//
+// HOW TO FIND THINGS:
+//   - Search "metadata" to change the browser tab title or description.
+//   - Search "colorPrimary" to change the accent colour of the sign-in screens.
+//   - Search "forcedTheme" to change/relax the dark-only setting.
+// =============================================================================
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";

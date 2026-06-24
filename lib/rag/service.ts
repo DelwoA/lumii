@@ -1,3 +1,22 @@
+// =============================================================================
+// FILE: lib/rag/service.ts
+// WHAT THIS FILE DOES:
+//   The heart of "smart search" for the tutor. Two halves:
+//     1. indexMaterial(): when a note or transcript is ready, split it into
+//        chunks, turn each into an embedding, and store them. (Re-running
+//        replaces the old chunks.)
+//     2. retrieveChunks(): given a student's question, find the few stored
+//        chunks closest in meaning, which the tutor then uses to answer.
+//
+// WHY RAW SQL HERE: the embedding is stored in a special "vector" column that
+//   the normal database toolkit (Prisma) cannot write or compare, so these few
+//   lines use direct SQL. "<=>" is pgvector's "how far apart in meaning" test;
+//   smaller means more similar, so ORDER BY it returns the closest chunks first.
+//
+// SECURITY: callers must pass an already owner-checked (materialId, userId), and
+//   every query is also limited to that userId so one student only ever searches
+//   their own material.
+// =============================================================================
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";

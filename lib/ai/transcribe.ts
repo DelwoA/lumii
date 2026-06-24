@@ -1,3 +1,15 @@
+// =============================================================================
+// FILE: lib/ai/transcribe.ts
+// WHAT THIS FILE DOES:
+//   Turns an uploaded AUDIO recording into written text (this is called speech
+//   to text, or transcription). That text then becomes the material's content,
+//   so summaries, quizzes, and the tutor work on it like any other material.
+//
+// NOTE: this uses the PRIMARY model only, with no fallback, because the fallback
+//   model cannot listen to audio. The instruction (TRANSCRIBE_SYSTEM) tells it
+//   to write only what is said and to mark unclear parts as [inaudible].
+//   A `signal` can cancel the call if it runs over the allowed time.
+// =============================================================================
 import "server-only";
 import { generateText } from "ai";
 import {

@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: app/(app)/progress/page.tsx   ->   web address: /progress
+// WHAT THIS FILE DOES:
+//   The Progress page. It loads the analytics (study time, sessions, quizzes,
+//   streak, chart data) and the private mood log, then lays out the summary
+//   cards, the charts, the study-activity calendar, and the mood history. It
+//   also tidies up any expired old mood check-ins when the page is opened.
+// =============================================================================
 import { BookOpen, Clock, Flame, Brain } from "lucide-react";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";

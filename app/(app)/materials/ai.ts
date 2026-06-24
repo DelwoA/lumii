@@ -1,5 +1,18 @@
 "use server";
 
+// =============================================================================
+// FILE: app/(app)/materials/ai.ts
+// WHAT THIS FILE DOES:
+//   The server actions for the AI features on a material: generating a summary,
+//   starting and submitting a quiz, and the tutor chat reply. These tie together
+//   the building blocks from lib/ai (the model calls), lib/materials/content
+//   (loading the material), lib/quiz/token (hiding the answer key), and the
+//   rewards system (awarding points + returning what to celebrate).
+//
+//   Like all server actions it runs on the server, checks the owner first, and
+//   is called straight from the material page's Summary / Quiz / Chat tabs.
+// =============================================================================
+
 import { revalidatePath } from "next/cache";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";

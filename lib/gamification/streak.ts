@@ -1,3 +1,21 @@
+// =============================================================================
+// FILE: lib/gamification/streak.ts
+// WHAT THIS FILE DOES:
+//   Works out the student's study "streak": how many days in a row they kept to
+//   their plan. A streak is encouraging, so it powers the flame number on the
+//   Dashboard and Achievements pages.
+//
+// THE RULES (kept simple and fair):
+//   - We only look at days that HAD a plan. Days with nothing planned are
+//     skipped (they neither help nor hurt the streak).
+//   - A planned day "counts" (is adherent) if at least 80% of the planned
+//     minutes were actually studied. Change ADHERENCE_THRESHOLD to adjust this.
+//   - A "perfect day" (100% done) is a separate trophy, not the streak.
+//
+// Pure maths (no database), so it is easy to unit-test (see streak.test.ts).
+// =============================================================================
+
+// 0.8 = 80%. A planned day must reach this share of its minutes to count.
 export const ADHERENCE_THRESHOLD = 0.8;
 
 export interface PlannedDay {

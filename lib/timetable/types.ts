@@ -1,3 +1,10 @@
+// =============================================================================
+// FILE: lib/timetable/types.ts
+// WHAT THIS FILE DOES:
+//   The shared "shape" of a planned session as the Timetable screens use it.
+//   Kept separate (no server code) so the calendar/agenda components and the
+//   server logic agree on the same fields.
+// =============================================================================
 import type { SessionStatus } from "@prisma/client";
 
 /** A scheduled session projected for the timetable UI (client-safe). */

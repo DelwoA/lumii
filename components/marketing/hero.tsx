@@ -1,3 +1,12 @@
+// =============================================================================
+// FILE: components/marketing/hero.tsx
+// WHAT THIS FILE DOES:
+//   The big top section ("hero") of the public landing page: the headline, the
+//   sign-up / how-it-works buttons, and the small product mock with the lime
+//   glow. It uses the motion library for the gentle entrance and cursor glow,
+//   and respects "reduced motion" settings.
+//   STYLE: the headline text and buttons are in the JSX below.
+// =============================================================================
 "use client";
 
 import Link from "next/link";

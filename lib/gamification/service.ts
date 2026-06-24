@@ -1,3 +1,21 @@
+// =============================================================================
+// FILE: lib/gamification/service.ts
+// WHAT THIS FILE DOES:
+//   The "manager" for the rewards system. It ties together the smaller pieces
+//   (points, ranks, streaks, trophies) and is what the rest of the app calls.
+//
+// THE MAIN JOBS:
+//   - checkTrophies / runAwardChecks: after an action, see if any new trophies
+//     were earned and whether the student ranked up, and return them to
+//     celebrate. (Best-effort: a rewards failure never breaks the main action.)
+//   - processAdherenceForDay + recomputeStreak: award adherent/perfect-day
+//     points and rebuild the streak after a session.
+//   - getAchievementsData / getGamificationSummary: read the numbers the
+//     Achievements page and the sidebar footer show.
+//
+// HOW TO ADD A NEW TROPHY: add it to lib/gamification/trophies.ts; this file
+//   then unlocks it automatically when its condition is met.
+// =============================================================================
 import "server-only";
 import type { Rank } from "@prisma/client";
 import { prisma } from "@/lib/prisma";

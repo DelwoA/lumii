@@ -1,3 +1,15 @@
+// =============================================================================
+// FILE: lib/validations/material.ts
+// WHAT THIS FILE DOES:
+//   The rules for what may be uploaded: the allowed file types (PDF, the listed
+//   image types, the listed audio types) and the maximum size. It uses Zod to
+//   describe these rules so BOTH the browser (before uploading) and the server
+//   (before accepting) can enforce the same thing. Unit-tested in
+//   material.test.ts.
+//
+// HOW TO CHANGE: edit MAX_FILE_BYTES for the size cap, or the content-type lists
+//   to allow more (or fewer) file kinds.
+// =============================================================================
 import { z } from "zod";
 import type { MaterialType } from "@prisma/client";
 

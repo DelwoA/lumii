@@ -1,5 +1,14 @@
 "use client"
 
+// =============================================================================
+// FILE: components/ui/input-group.tsx  (shadcn/ui primitive: generated, then themed)
+// WHAT THIS IS: A wrapper that groups a text box with attached add-ons.
+//   It is a reusable interface building block added from the shadcn/ui library
+//   and themed for LUMII. It is shared across many screens, so change with care.
+// HOW TO RESTYLE: the look comes from the Tailwind classes (and the variant
+//   definitions) in this file; editing them restyles every InputGroup in the app.
+// =============================================================================
+
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 

@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: components/subjects/subject-create-dialog.tsx
+// WHAT THIS FILE DOES:
+//   The "New subject" button and the pop-up dialog for creating a subject (name
+//   and colour). On submit it calls the create-subject server action and closes.
+//   It is also reused for editing an existing subject. The Cancel button sits to
+//   the left of the primary action.
+// =============================================================================
 "use client";
 
 import { useActionState, useEffect, useState } from "react";

@@ -1,3 +1,17 @@
+// =============================================================================
+// FILE: lib/rag/embeddings.ts
+// WHAT THIS FILE DOES:
+//   Turns text into embeddings (lists of numbers that capture meaning) by asking
+//   an embedding model through OpenRouter. These numbers are what make "search by
+//   meaning" possible: similar text gives similar numbers.
+//
+//   - embedTexts(): turn many chunks into numbers (in batches, keeping order).
+//   - embedQuery(): turn one question into numbers, to compare against chunks.
+//
+// WHY 1536 NUMBERS: that length (EMBEDDING_DIMENSIONS) fits inside what the
+//   pgvector search index can handle. This talks to the REST endpoint directly
+//   because the chat toolkit does not expose embeddings.
+// =============================================================================
 import "server-only";
 import { requireServerEnv } from "@/lib/env";
 import { orderEmbeddings } from "@/lib/rag/embed-response";

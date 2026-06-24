@@ -1,3 +1,9 @@
+// =============================================================================
+// FILE: components/session/start-session-button.tsx
+// WHAT THIS FILE DOES:
+//   The "Start session" button in the top bar. Clicking it asks the shared
+//   session store to start a study session; the running-session bar then appears.
+// =============================================================================
 "use client";
 
 import { Play } from "lucide-react";

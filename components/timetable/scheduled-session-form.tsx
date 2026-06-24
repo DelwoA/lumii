@@ -1,3 +1,10 @@
+// =============================================================================
+// FILE: components/timetable/scheduled-session-form.tsx
+// WHAT THIS FILE DOES:
+//   The form (inside a dialog) for creating or editing a planned study session:
+//   subject/topic, date and time, target length, and goal. On submit it calls
+//   the timetable create/edit server action. Cancel sits left of the save button.
+// =============================================================================
 "use client";
 
 import { useEffect, useMemo, useState } from "react";

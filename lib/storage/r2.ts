@@ -1,3 +1,27 @@
+// =============================================================================
+// FILE: lib/storage/r2.ts
+// WHAT THIS FILE DOES:
+//   Every operation on the file store (Cloudflare R2) lives here: making the
+//   secure short-lived links the browser uses to upload and view files, reading
+//   file bytes on the server (to feed the AI), and deleting files.
+//
+// IMPORTANT IDEAS:
+//   - The bucket is PRIVATE. Nobody can reach a file by guessing a web address;
+//     access is only through a "presigned URL" (a temporary signed link).
+//       * presignUpload / presignUploadPart: links the browser uses to upload.
+//       * presignDownload: a link to view a file (used by the PDF viewer).
+//   - Object keys look like users/<id>/<random>.<ext>, so files are namespaced
+//     per user and the names give nothing away.
+//   - Big files use a "multipart" upload: the file is sent in parts and then
+//     assembled (createMultipartUpload / completeMultipartUpload / abort...).
+//   - getObjectBytes / getObjectHead: read a file (or just its first bytes) on
+//     the server, for the AI pipeline and for the file-signature safety check.
+//   - deleteObjectsForUser: wipes all of a user's files when they delete their
+//     account.
+//
+// The actual file-signature checks are in ./magic (re-exported at the bottom) so
+// they can be tested without this server-only file.
+// =============================================================================
 import "server-only";
 import {
   PutObjectCommand,

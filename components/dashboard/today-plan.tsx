@@ -1,3 +1,9 @@
+// =============================================================================
+// FILE: components/dashboard/today-plan.tsx
+// WHAT THIS FILE DOES:
+//   The "Today's plan" block on the Dashboard. It lists the sessions planned for
+//   today and lets the student start one directly from here.
+// =============================================================================
 "use client";
 
 import Link from "next/link";

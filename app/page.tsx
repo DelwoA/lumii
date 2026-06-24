@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: app/page.tsx   ->   web address: / (the landing/home page)
+// WHAT THIS FILE DOES:
+//   The public landing page that visitors see first. It introduces LUMII (the
+//   hero headline, how it works, the features, gamification) and has the Log in
+//   and Sign up buttons. It is a marketing page, so it does not require sign-in;
+//   signed-in visitors are shown a Dashboard button instead.
+// =============================================================================
 import Link from "next/link";
 import {
   ArrowRight,

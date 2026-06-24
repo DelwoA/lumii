@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: components/progress/progress-charts.tsx
+// WHAT THIS FILE DOES:
+//   Draws the charts on the Progress page (study minutes over recent days,
+//   weekly adherence, and points growth) using the recharts library. It only
+//   displays the data the page passes in; the numbers are worked out server-side
+//   in lib/progress/service.ts.
+// =============================================================================
 "use client";
 
 import {

@@ -1,3 +1,12 @@
+// =============================================================================
+// FILE: components/materials/material-upload-dialog.tsx
+// WHAT THIS FILE DOES:
+//   The "Upload" button and dialog for adding a file material (PDF, image, or
+//   audio). It asks the server for a secure upload link, uploads the file
+//   straight to storage (showing a progress bar, and using the multipart helper
+//   for big files), then tells the server to finish and check the file. Cancel is
+//   disabled while an upload is in progress so a half-upload is not orphaned.
+// =============================================================================
 "use client";
 
 import { useRef, useState } from "react";

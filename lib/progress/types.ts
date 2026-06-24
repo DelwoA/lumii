@@ -1,3 +1,10 @@
+// =============================================================================
+// FILE: lib/progress/types.ts
+// WHAT THIS FILE DOES:
+//   The shared "shapes" for the Progress page data (totals, chart series, the
+//   activity calendar). Kept separate from the server query so the chart
+//   components in the browser can use the same shapes.
+// =============================================================================
 /** Client-safe shapes for the Progress analytics page. */
 
 export interface ProgressTotals {

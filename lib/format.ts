@@ -1,3 +1,13 @@
+// =============================================================================
+// FILE: lib/format.ts
+// WHAT THIS FILE DOES:
+//   Turns a number of seconds into friendly text for display.
+//     - formatClock: a live timer like "05:09" or "1:05:09" (used by the
+//       running-session bar).
+//     - formatDurationShort: a compact total like "1h 23m", "23m", or "45s"
+//       (used on the dashboard and progress cards).
+//   Pure helpers with no side effects.
+// =============================================================================
 /** Duration + clock formatting shared across the session bar, dashboard, etc. */
 
 /** A running clock: "MM:SS", or "H:MM:SS" once past an hour. */

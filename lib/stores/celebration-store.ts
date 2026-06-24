@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: lib/stores/celebration-store.ts
+// WHAT THIS FILE DOES:
+//   A small browser store (Zustand) that holds a QUEUE of things to celebrate
+//   (trophies unlocked, a rank-up). If several happen at once, they are shown
+//   one at a time so the confetti pop-ups do not pile on top of each other. The
+//   pop-up component reads from here; unit-tested in celebration-store.test.ts.
+// =============================================================================
 "use client";
 
 import { create } from "zustand";

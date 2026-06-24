@@ -1,3 +1,24 @@
+// =============================================================================
+// FILE: lib/ai/provider.ts
+// WHAT THIS FILE DOES:
+//   The SINGLE doorway to the AI models. Every AI feature (summary, quiz, tutor,
+//   transcription) goes through here. Keeping AI access in one file means we can
+//   change or upgrade the model by editing one place (or one setting), without
+//   touching the features.
+//
+// THE KEY PIECES:
+//   - PRIMARY_MODEL_ID / FALLBACK_MODEL_ID: which models to use (read from env
+//     settings, so they can be tuned without changing code).
+//   - withModelFallback(): try the primary model; if it errors or is busy,
+//     automatically retry with the fallback model. It also reports which model
+//     actually answered.
+//   - materialUserContent() / fileOrImagePart(): package a material (a PDF, an
+//     image, or typed text) into the format a multimodal model expects. Images
+//     are sent as image parts; PDFs as file parts; notes as plain text.
+//
+// HOW TO CHANGE THE MODEL: set OPENROUTER_MODEL (and OPENROUTER_FALLBACK_MODEL)
+//   in the environment settings. No code change needed.
+// =============================================================================
 import "server-only";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { requireServerEnv } from "@/lib/env";

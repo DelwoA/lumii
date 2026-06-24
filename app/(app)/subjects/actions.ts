@@ -1,5 +1,14 @@
 "use server";
 
+// =============================================================================
+// FILE: app/(app)/subjects/actions.ts
+// WHAT THIS FILE DOES:
+//   Server actions for subjects and topics: create, edit, and delete. Deleting a
+//   subject or topic is owner-scoped and deliberately KEEPS the student's
+//   materials (the database just clears the link), so no study content is lost.
+//   Input is validated with the rules in lib/validations/subject.
+// =============================================================================
+
 import { revalidatePath } from "next/cache";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";

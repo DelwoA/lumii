@@ -1,8 +1,12 @@
-/**
- * Pure helpers for the "average feeling" summary on the Progress page. Kept free
- * of server-only imports so the summary shape + headline rules can be unit tested
- * and shared between the server query and the client-rendered component.
- */
+// =============================================================================
+// FILE: lib/mood/summary.ts
+// WHAT THIS FILE DOES:
+//   The pure rules for the "average feeling" shown on the Progress page. Given
+//   counts of positive / neutral / negative check-ins over the recent window, it
+//   produces a friendly headline ("Mostly positive lately", and so on). No
+//   database here, so it is easy to unit-test (see summary.test.ts); the server
+//   query that gathers the counts lives in lib/mood/service.ts.
+// =============================================================================
 
 /** Rolling window the deterministic mood summary is computed over. */
 export const MOOD_WINDOW_DAYS = 14;

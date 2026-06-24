@@ -1,3 +1,10 @@
+// =============================================================================
+// FILE: components/user-menu.tsx
+// WHAT THIS FILE DOES:
+//   The round profile button at the top-right. It is simply Clerk's <UserButton>,
+//   whose menu shows only Clerk's own actions (Manage account, Sign out). App
+//   navigation is in the sidebar, so it is deliberately not repeated here.
+// =============================================================================
 "use client";
 
 import { UserButton } from "@clerk/nextjs";

@@ -1,3 +1,12 @@
+// =============================================================================
+// FILE: components/materials/quiz-runner.tsx
+// WHAT THIS FILE DOES:
+//   The whole quiz experience inside the Quiz tab: Generate a quiz, answer the
+//   five questions, submit for instant marking, see per-question feedback, and
+//   Export the result as a PDF. The correct answers arrive only after submitting
+//   (the server checks them), and the quiz is kept only in memory, not saved.
+//   It warns before leaving so an in-progress quiz is not lost by accident.
+// =============================================================================
 "use client";
 
 import { useEffect, useRef, useState } from "react";

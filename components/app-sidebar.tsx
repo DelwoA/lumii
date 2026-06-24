@@ -1,3 +1,17 @@
+// =============================================================================
+// FILE: components/app-sidebar.tsx
+// WHAT THIS FILE DOES:
+//   The left navigation menu shown on every signed-in page. It lists the links
+//   (Dashboard, Subjects, Materials, Timetable, Progress, Achievements,
+//   Settings), highlights the current page, and shows the points/rank/streak
+//   summary in its footer.
+//
+// HOW TO CHANGE:
+//   - To add, remove, or reorder menu items, edit the nav list below.
+//   - To change an item's icon, swap the lucide-react icon imported here.
+//   - "use client" at the top marks this as browser code (it reacts to which
+//     page you are on, to highlight the active item).
+// =============================================================================
 "use client";
 
 import Link from "next/link";

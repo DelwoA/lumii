@@ -1,8 +1,16 @@
-/**
- * Pure text helpers for mood check-ins. Kept free of server-only imports so the
- * clamp can be unit tested and shared between the AI analysis and the storage
- * path (guaranteeing the stored text is exactly what was analysed).
- */
+// =============================================================================
+// FILE: lib/mood/text.ts
+// WHAT THIS FILE DOES:
+//   Small, pure text helpers for the mood check-in: capping the length and
+//   tidying the AI heading and mood words. "Pure" means no database and no
+//   server-only code, so these can be unit-tested directly (see text.test.ts)
+//   and used by both the analysis step and the saving step. Using the same
+//   helper in both places guarantees the stored text matches what was analysed.
+//
+// HOW TO CHANGE: MAX_MOOD_CHARS sets the length limit; MOOD_MAX_WORDS sets how
+//   many words a mood phrase may have; TRAILING_FILLER lists words a phrase
+//   should not end on (so a cut never leaves a dangling "and").
+// =============================================================================
 
 /** Max characters of a check-in we analyse AND store (a single clamp upstream). */
 export const MAX_MOOD_CHARS = 1000;

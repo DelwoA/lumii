@@ -1,3 +1,19 @@
+// =============================================================================
+// FILE: lib/ai/mood.ts
+// WHAT THIS FILE DOES:
+//   Takes the student's free-text mood note and asks the AI model for three
+//   tidy fields: a short heading, a one-to-four word mood, and an overall
+//   "valence" (POSITIVE / NEUTRAL / NEGATIVE) used only to work out an average
+//   feeling on the Progress page.
+//
+// HOW IT STAYS SAFE AND TIDY:
+//   - It asks for a fixed shape (see moodSchema) and checks the reply with Zod.
+//   - The MOOD_SYSTEM prompt below is the careful instruction sent to the model.
+//     Search "MOOD_SYSTEM" to change how the mood is interpreted.
+//   - If the note is empty or unclear, it falls back to a neutral check-in.
+//   - tidyHeading/tidyMood/clampMoodText (in lib/mood/text.ts) clean the output
+//     so the stored text is exactly what was analysed.
+// =============================================================================
 import "server-only";
 import { generateObject } from "ai";
 import { z } from "zod";

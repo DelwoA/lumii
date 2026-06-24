@@ -1,8 +1,15 @@
-/**
- * Magic-byte (file signature) checks. Pure and dependency-free so they can be
- * unit-tested directly (the R2 client module is server-only and not importable
- * from tests). Used to confirm an uploaded object really is its declared type.
- */
+// =============================================================================
+// FILE: lib/storage/magic.ts
+// WHAT THIS FILE DOES:
+//   Checks that an uploaded file really IS the type it claims to be, by looking
+//   at its first few bytes. Every file format begins with a tell-tale signature
+//   (called a "magic number"): a PDF starts with "%PDF", a PNG image has its own
+//   signature, and so on. Checking this stops someone renaming, say, a program
+//   as ".pdf" to sneak it past us.
+//
+//   These functions are pure (just look at bytes), so they are easy to unit-test
+//   (see magic.test.ts) and are re-used by the upload checks in r2.ts.
+// =============================================================================
 
 /** True if the bytes begin with the PDF magic number (%PDF). */
 export function isPdfMagic(bytes: Uint8Array | null): boolean {

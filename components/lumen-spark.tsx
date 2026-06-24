@@ -1,3 +1,13 @@
+// =============================================================================
+// FILE: components/lumen-spark.tsx
+// WHAT THIS FILE DOES:
+//   Draws LUMII's signature logo mark: a small four-point "spark", as an SVG.
+//   It is reused as the logo, bullet markers, loaders, and empty-state icon.
+//   It uses currentColor, which means it takes the colour of its surrounding
+//   text, so adding the class text-primary makes it the lime accent.
+//   STYLE: edit the size with the className (default size-6) or the path to
+//   change the shape.
+// =============================================================================
 import { cn } from "@/lib/utils";
 
 /**

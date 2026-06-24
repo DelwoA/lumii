@@ -1,3 +1,10 @@
+// =============================================================================
+// FILE: components/materials/note-create-dialog.tsx
+// WHAT THIS FILE DOES:
+//   The dialog for adding a typed NOTE material (a title plus the note text), as
+//   an alternative to uploading a file. On submit it calls the create-note
+//   server action; the note then works with the same Summary/Quiz/Chat tools.
+// =============================================================================
 "use client";
 
 import { useActionState, useEffect, useState } from "react";

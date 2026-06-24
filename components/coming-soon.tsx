@@ -1,3 +1,9 @@
+// =============================================================================
+// FILE: components/coming-soon.tsx
+// WHAT THIS FILE DOES:
+//   A reusable placeholder block (spark icon + title + description) shown for any
+//   area that is not built out yet. Keeps unfinished spots looking tidy.
+// =============================================================================
 import { LumenSpark } from "@/components/lumen-spark";
 
 /** Placeholder empty-state for pages that are not built out yet. */

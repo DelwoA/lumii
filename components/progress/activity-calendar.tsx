@@ -1,3 +1,10 @@
+// =============================================================================
+// FILE: components/progress/activity-calendar.tsx
+// WHAT THIS FILE DOES:
+//   Draws the GitHub-style study-activity calendar on the Progress page: a grid
+//   of small squares (one per day) that get a brighter lime shade the more
+//   minutes were studied that day. The level() helper maps minutes to a shade.
+// =============================================================================
 import { cn } from "@/lib/utils";
 
 /** Map study minutes to a discrete intensity level (0-4) for the heatmap. */

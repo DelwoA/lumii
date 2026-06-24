@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: app/(app)/materials/[id]/page.tsx   ->   web address: /materials/<id>
+// WHAT THIS FILE DOES:
+//   One material's detail page (the [id] is the material's id, read from the
+//   address). It shows the file viewer (using a secure short-lived link for
+//   PDFs/images) and the AI tools as tabs: Summary, Quiz, and Chat. It also has
+//   a "Back to materials" link and a delete option. Only the owner can open it.
+// =============================================================================
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";

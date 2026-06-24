@@ -1,5 +1,14 @@
 "use client"
 
+// =============================================================================
+// FILE: components/ui/select.tsx  (shadcn/ui primitive: generated, then themed)
+// WHAT THIS IS: A dropdown for choosing one option from a list.
+//   It is a reusable interface building block added from the shadcn/ui library
+//   and themed for LUMII. It is shared across many screens, so change with care.
+// HOW TO RESTYLE: the look comes from the Tailwind classes (and the variant
+//   definitions) in this file; editing them restyles every Select in the app.
+// =============================================================================
+
 import * as React from "react"
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 

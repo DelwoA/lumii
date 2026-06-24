@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: components/celebration/celebration-overlay.tsx
+// WHAT THIS FILE DOES:
+//   The reward pop-up. Mounted once in the app shell, it watches the celebration
+//   queue (lib/stores/celebration-store.ts) and, when a trophy is unlocked or
+//   the student ranks up, shows a dialog with a confetti burst (canvas-confetti).
+//   It respects "reduced motion" settings and shows one celebration at a time.
+// =============================================================================
 "use client";
 
 import { useEffect } from "react";

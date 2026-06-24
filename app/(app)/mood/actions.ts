@@ -1,5 +1,14 @@
 "use server";
 
+// =============================================================================
+// FILE: app/(app)/mood/actions.ts
+// WHAT THIS FILE DOES:
+//   Server actions for the mood check-in: logMood() saves a check-in (the
+//   student's own words plus the AI heading/mood/feeling) privately, and
+//   deleteMoodData() removes all of a student's mood check-ins (the privacy
+//   control in Settings). Owner-scoped, and it never exposes mood publicly.
+// =============================================================================
+
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { analyzeMood, type MoodValence } from "@/lib/ai/mood";

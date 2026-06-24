@@ -1,3 +1,12 @@
+// =============================================================================
+// FILE: components/ui/button.tsx  (shadcn/ui primitive: generated, then themed)
+// WHAT THIS IS: The clickable button, including its size and colour variants.
+//   It is a reusable interface building block added from the shadcn/ui library
+//   and themed for LUMII. It is shared across many screens, so change with care.
+// HOW TO RESTYLE: the look comes from the Tailwind classes (and the variant
+//   definitions) in this file; editing them restyles every Button in the app.
+// =============================================================================
+
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 

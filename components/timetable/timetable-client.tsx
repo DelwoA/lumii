@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: components/timetable/timetable-client.tsx
+// WHAT THIS FILE DOES:
+//   The interactive Timetable (browser side): the month and week views, the list
+//   of planned sessions, and the buttons to add, edit, cancel, or start a
+//   session. It opens the scheduled-session-form for create/edit and calls the
+//   timetable server actions. The page that loads the data is the timetable page.
+// =============================================================================
 "use client";
 
 import { useMemo, useState } from "react";

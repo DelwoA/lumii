@@ -1,3 +1,10 @@
+// =============================================================================
+// FILE: components/materials/material-chat.tsx
+// WHAT THIS FILE DOES:
+//   The tutor chat inside the Chat tab. It keeps the on-screen conversation,
+//   sends each question to the tutor server action, and shows the replies (as
+//   Markdown). The conversation is temporary (not saved long-term).
+// =============================================================================
 "use client";
 
 import { useEffect, useRef, useState } from "react";

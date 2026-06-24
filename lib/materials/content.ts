@@ -1,3 +1,15 @@
+// =============================================================================
+// FILE: lib/materials/content.ts
+// WHAT THIS FILE DOES:
+//   Fetches a material's content ready to hand to an AI feature, and does it
+//   safely (owner-scoped: it only finds the material if it belongs to this user).
+//   Depending on the material type it returns the right thing:
+//     - NOTE  -> the typed text.
+//     - AUDIO -> the saved transcript (the audio itself is not re-sent).
+//     - PDF / IMAGE -> the file's bytes loaded from storage (only when READY).
+//   Returns null if the material is missing, not the user's, or not ready yet.
+//   This is the shared loader used by the summary, quiz, and tutor features.
+// =============================================================================
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getObjectBytes } from "@/lib/storage/r2";

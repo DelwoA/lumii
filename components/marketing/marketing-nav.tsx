@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: components/marketing/marketing-nav.tsx
+// WHAT THIS FILE DOES:
+//   The top navigation bar of the public landing page. It shows the logo and
+//   section links, and is "auth-aware": signed-out visitors see Log in / Sign up,
+//   while signed-in visitors see a Dashboard button and their profile menu. On
+//   small screens the links collapse into a menu.
+// =============================================================================
 "use client";
 
 import Link from "next/link";

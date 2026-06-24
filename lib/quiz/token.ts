@@ -1,3 +1,21 @@
+// =============================================================================
+// FILE: lib/quiz/token.ts
+// WHAT THIS FILE DOES:
+//   Stops cheating on quizzes. When a quiz is generated, the correct answers are
+//   NOT sent to the browser. Instead they are sealed inside an encrypted "token"
+//   (a scrambled string only the server can read). When the student submits,
+//   the server unlocks the token, checks it is theirs and not expired, and works
+//   out the real score itself. The token is never saved anywhere.
+//
+// THE TECHNIQUE (in plain words):
+//   It uses AES-256-GCM, a standard, strong, two-way lock (encryption) that also
+//   detects tampering. If anyone edits the token, unlocking it fails on purpose.
+//   The lock's secret comes from the QUIZ_TOKEN_SECRET environment setting.
+//
+//   - encryptQuizToken: lock the answers into a token (server -> browser).
+//   - decryptQuizToken: unlock + check the token on submit (browser -> server).
+//   - scoreQuiz: the trusted marking that the server (not the browser) performs.
+// =============================================================================
 import {
   createCipheriv,
   createDecipheriv,

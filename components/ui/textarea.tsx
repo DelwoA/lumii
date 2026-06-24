@@ -1,3 +1,12 @@
+// =============================================================================
+// FILE: components/ui/textarea.tsx  (shadcn/ui primitive: generated, then themed)
+// WHAT THIS IS: A multi-line text box.
+//   It is a reusable interface building block added from the shadcn/ui library
+//   and themed for LUMII. It is shared across many screens, so change with care.
+// HOW TO RESTYLE: the look comes from the Tailwind classes (and the variant
+//   definitions) in this file; editing them restyles every Textarea in the app.
+// =============================================================================
+
 import * as React from "react"
 
 import { cn } from "@/lib/utils"

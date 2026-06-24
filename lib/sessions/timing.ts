@@ -1,9 +1,22 @@
-/**
- * Pure timing math for study sessions (no DB, no clock of its own) so it can be
- * unit-tested deterministically. The session lifecycle is reconcile-on-read:
- * a serverless request recomputes whether an open session should auto-close,
- * rather than relying on a background job.
- */
+// =============================================================================
+// FILE: lib/sessions/timing.ts
+// WHAT THIS FILE DOES:
+//   The pure maths for study-session timing: how long a session counts for, and
+//   when to auto-close one the student forgot to stop. It has no database and no
+//   clock of its own (the current time is passed in), which makes it easy and
+//   reliable to unit-test (see timing.test.ts).
+//
+// KEY IDEAS:
+//   - Heartbeat: while the tab is open, the browser quietly pings the server
+//     every 30 seconds so we know the student is still there.
+//   - Auto-close ("reconcile on read"): instead of a background job, each time
+//     the app checks an open session it works out whether it should have closed:
+//       * Hard cap: a session can never count for more than 4 hours.
+//       * Idle: if there has been no heartbeat for 5 minutes, the student likely
+//         walked away, so we close it and only count up to the last heartbeat.
+//
+// HOW TO CHANGE: edit the three constants just below.
+// =============================================================================
 
 /** Idle gap (since last heartbeat) after which an open session auto-closes. */
 export const IDLE_TIMEOUT_SEC = 5 * 60;

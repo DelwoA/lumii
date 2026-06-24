@@ -1,5 +1,15 @@
 "use server";
 
+// =============================================================================
+// FILE: app/(app)/materials/chat-actions.ts
+// WHAT THIS FILE DOES:
+//   The server action behind the tutor chat. For each question it: checks the
+//   owner, finds the most relevant pieces of the material with smart search
+//   (retrieveChunks) when an index exists, and asks the tutor model for a reply
+//   (chatReply). It is kept in its own file so the chat component imports only
+//   this one action.
+// =============================================================================
+
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { loadMaterialForAI } from "@/lib/materials/content";

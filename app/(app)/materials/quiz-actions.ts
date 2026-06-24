@@ -1,5 +1,18 @@
 "use server";
 
+// =============================================================================
+// FILE: app/(app)/materials/quiz-actions.ts
+// WHAT THIS FILE DOES:
+//   The two server actions behind the quiz:
+//     - startQuiz: generate the questions, then send the browser the questions
+//       WITHOUT the answers, plus a sealed token (lib/quiz/token.ts) that hides
+//       the correct answers.
+//     - submitQuiz: unlock the token, mark the answers on the server (so marking
+//       can't be faked), save a minimal completion record (counts only, never
+//       the questions), award points, and return the graded result.
+//   Owner-checked, and the quiz content itself is never stored.
+// =============================================================================
+
 import { randomUUID } from "node:crypto";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";

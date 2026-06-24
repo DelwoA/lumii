@@ -1,5 +1,14 @@
 "use server";
 
+// =============================================================================
+// FILE: app/(app)/settings/actions.ts
+// WHAT THIS FILE DOES:
+//   Server actions for the Settings page: saving the profile (display name and
+//   timezone) and saving the public showcase settings (handle, on/off, and what
+//   to show). It validates input with Zod, checks the signed-in user, and keeps
+//   handles unique. (Deleting mood data lives in the mood actions file.)
+// =============================================================================
+
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";

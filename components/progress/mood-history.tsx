@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: components/progress/mood-history.tsx
+// WHAT THIS FILE DOES:
+//   The private mood log shown at the bottom of the Progress page. It displays
+//   the "average feeling" summary (worked out on the server) and then each
+//   check-in in order: heading, date/time, mood, and the words the student
+//   wrote. It only shows data, so it is safe as a server-rendered component.
+// =============================================================================
 import { Card } from "@/components/ui/card";
 import { MOOD_WINDOW_DAYS, type MoodSummary } from "@/lib/mood/summary";
 

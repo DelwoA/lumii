@@ -1,3 +1,13 @@
+// =============================================================================
+// FILE: lib/mood/service.ts
+// WHAT THIS FILE DOES:
+//   The database side of the mood feature. Two jobs:
+//     - purgeExpiredMoodCheckins: lazily deletes old check-ins whose retention
+//       time has passed (newer ones are kept until the student deletes them).
+//     - getMoodSummary: counts the last 14 days of check-ins by feeling and asks
+//       lib/mood/summary.ts to turn those counts into a friendly headline.
+//   It is "server-only" because it touches the database directly.
+// =============================================================================
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import {

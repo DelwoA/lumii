@@ -1,3 +1,14 @@
+// =============================================================================
+// FILE: app/(app)/dashboard/page.tsx   ->   web address: /dashboard
+// WHAT THIS FILE DOES:
+//   In Next.js a file named page.tsx IS a page, and its folder path is its web
+//   address. So this file is the Dashboard at /dashboard.
+//
+//   It runs on the server, loads the signed-in student's data (rank/points,
+//   today's plan, weekly stats, recent materials), and lays out the Dashboard:
+//   the overview cards, today's plan, the mood check-in box, and quick actions.
+//   The interactive pieces (like the mood box) are separate components it places.
+// =============================================================================
 import Link from "next/link";
 import {
   ArrowRight,

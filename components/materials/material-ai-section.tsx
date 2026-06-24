@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: components/materials/material-ai-section.tsx
+// WHAT THIS FILE DOES:
+//   The Summary / Quiz / Chat tabs shown on a material's detail page. It owns the
+//   tab switching and the Summary tab itself (generate, show, regenerate). The
+//   Quiz tab uses <QuizRunner> and the Chat tab uses <MaterialChat>. It also
+//   enqueues any celebration returned when a summary earns points.
+// =============================================================================
 "use client";
 
 import { useState } from "react";

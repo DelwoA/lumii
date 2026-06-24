@@ -1,3 +1,20 @@
+// =============================================================================
+// FILE: lib/ai/summary.ts
+// WHAT THIS FILE DOES:
+//   Produces the AI revision summary for a material. It sends the material (a
+//   PDF, an image, or typed notes) to the model with a careful instruction and
+//   gets back tidy Markdown (a simple text format that supports headings and
+//   bullets).
+//
+// THE INSTRUCTION ("prompt"):
+//   SUMMARY_SYSTEM below is the exact instruction given to the model. It asks for
+//   fixed sections (overview, key concepts, key terms, common misconceptions,
+//   likely exam focus, in simple words) and tells the model to stay faithful to
+//   the material. To change what a summary looks like, edit SUMMARY_SYSTEM.
+//
+// SUMMARY_GENERATION_VERSION: a label saved with each summary so we know which
+//   instruction version produced it. Bump it whenever SUMMARY_SYSTEM changes.
+// =============================================================================
 import "server-only";
 import { generateText } from "ai";
 import { withModelFallback, materialUserContent } from "@/lib/ai/provider";

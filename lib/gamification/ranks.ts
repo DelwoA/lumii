@@ -1,3 +1,20 @@
+// =============================================================================
+// FILE: lib/gamification/ranks.ts
+// WHAT THIS FILE DOES:
+//   Turns a student's total points (XP) into a RANK (Bronze, Silver, Gold,
+//   Platinum, Diamond) and works out how close they are to the next rank (used
+//   for the progress bar on the Achievements page).
+//
+// HOW TO CHANGE THE RANKS:
+//   Edit RANK_THRESHOLDS below. Each line says "you reach this rank at this many
+//   points". They must stay in increasing order.
+//
+//   - rankForXp(total)   -> which rank that many points earns.
+//   - rankProgress(total)-> details for the progress bar (how far into the
+//     current rank, and the fraction toward the next one from 0 to 1).
+//
+// Pure maths (no database), so it is easy to unit-test (see ranks.test.ts).
+// =============================================================================
 import type { Rank } from "@prisma/client";
 
 /** XP thresholds per rank (ascending). Published + deterministic for the viva. */

@@ -1,7 +1,36 @@
-// LUMII Prisma schema (v1). See .claude/plans/lucky-wishing-eich.md for rationale.
-// Conventions: every user-owned root carries userId + @@index; FKs indexed;
-// onDelete set explicitly. CHECK constraints + the one-open-session partial unique
-// index are added via a follow-up raw-SQL migration (Prisma cannot express them).
+// =============================================================================
+// FILE: prisma/schema.prisma
+// WHAT THIS FILE IS:
+//   This is the single "blueprint" of the LUMII database. Every box (called a
+//   "model" here, which becomes a "table" in the database) describes one kind of
+//   thing we store, and the fields inside it are the columns of that table.
+//
+// HOW IT FITS IN THE PROJECT:
+//   Prisma reads this file and (a) creates matching tables in the PostgreSQL
+//   database and (b) generates type-safe code so the rest of the app can read
+//   and write these tables safely. If you change anything here you must run a
+//   migration (see package.json scripts: "db:migrate" for local work).
+//
+// HOW TO FIND THINGS (use your editor's search, Ctrl/Cmd + F):
+//   - Search "model User" (or any model name) to jump to a table.
+//   - Search "enum " to see the fixed lists of allowed values.
+//   - Search "@relation" to see how two tables are linked together.
+//   - Search "onDelete" to see what happens to linked rows when a row is deleted.
+//
+// QUICK VOCABULARY:
+//   @id            = the primary key (the unique id of a row).
+//   @unique        = no two rows may share this value.
+//   @default(...)  = the value used when none is given.
+//   FK (foreign key) = a field that points to another table's row (its owner).
+//   @@index([...]) = a "fast lookup" helper so searches by those fields are quick.
+//   Cascade        = when the parent row is deleted, delete this row too.
+//   SetNull        = when the parent row is deleted, just clear the link here.
+// -----------------------------------------------------------------------------
+// Conventions used below: every user-owned table carries a userId + an index;
+// foreign keys are indexed; onDelete is set explicitly. A few database rules
+// (CHECK constraints and the "only one open study session" rule) cannot be
+// written in Prisma, so they are added by a separate raw-SQL migration.
+// =============================================================================
 
 generator client {
   provider = "prisma-client-js"

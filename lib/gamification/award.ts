@@ -1,3 +1,22 @@
+// =============================================================================
+// FILE: lib/gamification/award.ts
+// WHAT THIS FILE DOES:
+//   The one place that actually GIVES a student points. Every reward goes
+//   through awardXp(). It does three things in a single safe step (a database
+//   "transaction", which means all-or-nothing):
+//     1. Writes one row in the ActivityEvent table (the points "ledger", like a
+//        bank statement line).
+//     2. Applies the daily points cap.
+//     3. Updates the running total and the rank on the GamificationProfile.
+//
+// TWO IMPORTANT SAFEGUARDS:
+//   - idempotencyKey: a unique label per award so the SAME reward can never be
+//     given twice (even on a double click or a retry).
+//   - The catch at the bottom handles a rare "two things happened at once" case
+//     so points are never accidentally lost or doubled.
+//
+// This keeps the invariant: total points == the sum of all ledger rows.
+// =============================================================================
 import "server-only";
 import { Prisma } from "@prisma/client";
 import type { EventType, Rank } from "@prisma/client";

@@ -1,3 +1,12 @@
+// =============================================================================
+// FILE: lib/progress/service.ts
+// WHAT THIS FILE DOES:
+//   Gathers everything the Progress page shows. It reads the database and works
+//   out the totals (study time, sessions, quizzes, longest streak) and the data
+//   for the charts (study minutes over recent days, weekly adherence, points
+//   growth) and the study-activity calendar. All of it is owner-scoped to the
+//   signed-in user. The shapes it returns are described in ./types.ts.
+// =============================================================================
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { localDateString } from "@/lib/timetable/dates";

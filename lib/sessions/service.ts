@@ -1,3 +1,21 @@
+// =============================================================================
+// FILE: lib/sessions/service.ts
+// WHAT THIS FILE DOES:
+//   All the back-end logic for a STUDY SESSION (the timed block a student starts
+//   and stops). This is where a session is created, kept alive by heartbeats,
+//   auto-closed if forgotten, and finally finalized (scored + points awarded).
+//
+// THE MAIN FUNCTIONS:
+//   - startSession:  begins a session (refuses a second one if one is open).
+//   - recordHeartbeat: the regular "still here" ping; also auto-closes if stale.
+//   - stopSession:   the student presses Stop; we finalize and score it.
+//   - finalize:      the shared closing logic (used by both Stop and auto-close):
+//                    score it, mark a planned session complete, award the points.
+//   - bumpEngagement: counts in-session activity (used by the quality score).
+//
+// SAFETY: finalize uses "close only if still open" so a Stop and an auto-close
+//   happening at the same moment cannot double-count a session.
+// =============================================================================
 import "server-only";
 import { Prisma, type StudySession } from "@prisma/client";
 import { prisma } from "@/lib/prisma";

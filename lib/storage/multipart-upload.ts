@@ -1,9 +1,15 @@
-/**
- * Client-side multipart upload helper. Slices a file into ordered parts and
- * PUTs each one to its presigned R2 URL with bounded concurrency and per-part
- * retry, reporting progress as parts land. This module is browser-only (it uses
- * fetch + Blob); it must never import the server-only R2 client.
- */
+// =============================================================================
+// FILE: lib/storage/multipart-upload.ts
+// WHAT THIS FILE DOES:
+//   Runs in the BROWSER. It uploads a large file by cutting it into pieces
+//   ("parts") and sending each part straight to the file store using the secure
+//   links the server provided. It uploads a few parts at once (bounded
+//   concurrency), retries a part that fails, and reports progress so the upload
+//   bar can move. When all parts are up, the server stitches them together.
+//
+//   This is what lets big files upload without passing through the app server.
+//   It is browser-only and never imports the server file store code.
+// =============================================================================
 
 export interface UploadPartPlan {
   /** 1-based part number (S3/R2 multipart parts start at 1). */

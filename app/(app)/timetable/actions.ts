@@ -1,5 +1,13 @@
 "use server";
 
+// =============================================================================
+// FILE: app/(app)/timetable/actions.ts
+// WHAT THIS FILE DOES:
+//   Server actions for the Timetable: create, edit, and cancel a planned study
+//   session. They validate input with Zod, check the signed-in user, and hand
+//   off to lib/timetable/service for the database work.
+// =============================================================================
+
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireDbUser } from "@/lib/auth";

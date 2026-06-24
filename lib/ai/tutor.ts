@@ -1,8 +1,27 @@
+// =============================================================================
+// FILE: lib/ai/tutor.ts
+// WHAT THIS FILE DOES:
+//   Produces one reply from the AI tutor chat for a material. It builds the
+//   instruction + the recent conversation and asks the model for an answer.
+//
+// THE TWO IMPORTANT BEHAVIOURS (set in systemPrompt below, search "SCOPE"):
+//   - Stays on topic: it answers questions about the material's subject and
+//     politely declines clearly unrelated ones (weather, shopping, etc.).
+//   - Teaches rather than just answering: it nudges the student to reason,
+//     instead of handing over finished homework answers.
+//
+// CONTEXT CHOICE (to save cost): if the material already has text (a note or an
+//   audio transcript, often the most relevant pieces found by smart search) that
+//   text is put straight into the instruction. Only when there is no text is the
+//   PDF/image itself attached, which is heavier. Only the last MAX_HISTORY turns
+//   of the chat are sent to keep requests small.
+// =============================================================================
 import "server-only";
 import { generateText } from "ai";
 import { withModelFallback, fileOrImagePart } from "@/lib/ai/provider";
 import type { ChatMessage } from "@/lib/ai/chat-types";
 
+// How many recent chat turns to include with each request (keeps it focused).
 const MAX_HISTORY = 10;
 
 // Only a user turn can carry the attached file/image; assistant turns are text.

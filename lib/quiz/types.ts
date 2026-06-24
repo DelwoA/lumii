@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: lib/quiz/types.ts
+// WHAT THIS FILE DOES:
+//   The shared "shapes" for the quiz feature: a question as shown to the student
+//   (note: no correct answer included), a graded question shown after submitting,
+//   and the results of starting and submitting a quiz. Keeping these shapes in
+//   their own file lets the browser quiz screen and the server agree on them.
+// =============================================================================
 /** Shared quiz types (kept out of the "use server" action file). */
 import type { Celebration } from "@/lib/gamification/celebration";
 

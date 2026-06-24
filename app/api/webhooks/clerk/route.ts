@@ -1,3 +1,16 @@
+// =============================================================================
+// FILE: app/api/webhooks/clerk/route.ts
+// WHAT THIS FILE DOES:
+//   A "webhook": a back-door address that the sign-in service (Clerk) calls to
+//   tell us about account changes (user created, updated, or deleted). Anything
+//   under app/api/.../route.ts is a web endpoint rather than a page.
+//
+//   It first VERIFIES the message is genuinely from Clerk (using svix and a
+//   shared secret), then keeps our own User table in step:
+//     - created/updated -> add or update the matching User row.
+//     - deleted -> remove the user's files from storage, then their data.
+//   Verifying the signature matters so nobody can fake account changes.
+// =============================================================================
 import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";

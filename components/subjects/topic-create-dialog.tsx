@@ -1,3 +1,10 @@
+// =============================================================================
+// FILE: components/subjects/topic-create-dialog.tsx
+// WHAT THIS FILE DOES:
+//   The "Add topic" button and pop-up dialog (inside a subject's detail page)
+//   for creating a topic. On submit it calls the create-topic server action and
+//   closes. Cancel sits to the left of the primary action.
+// =============================================================================
 "use client";
 
 import { useActionState, useEffect, useState } from "react";

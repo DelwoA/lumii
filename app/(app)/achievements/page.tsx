@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: app/(app)/achievements/page.tsx   ->   web address: /achievements
+// WHAT THIS FILE DOES:
+//   The Achievements page. It loads the student's rewards data (rank and points
+//   progress, current and longest streak, and the full trophy list showing which
+//   are locked and unlocked) and lays it out. The confetti pop-ups that fire when
+//   something is unlocked are handled elsewhere (the celebration components).
+// =============================================================================
 import { Crown, Flame, Lock, Trophy } from "lucide-react";
 import { requireDbUser } from "@/lib/auth";
 import { getAchievementsData } from "@/lib/gamification/service";

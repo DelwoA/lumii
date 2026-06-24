@@ -1,3 +1,14 @@
+// =============================================================================
+// FILE: lib/pdf/quiz-result-pdf.tsx
+// WHAT THIS FILE DOES:
+//   Describes the downloadable PDF of a quiz result, built with the react-pdf
+//   library. Instead of HTML, react-pdf uses its own building blocks (Document,
+//   Page, View, Text) and a small stylesheet. When the student clicks Export
+//   PDF, this layout is filled with their questions, chosen answers, the correct
+//   answers, and explanations, then turned into a file to download.
+//
+// HOW TO CHANGE THE LOOK: edit the `styles` below (fonts, sizes, colours).
+// =============================================================================
 import {
   Document,
   Page,

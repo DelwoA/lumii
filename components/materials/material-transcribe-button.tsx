@@ -1,3 +1,10 @@
+// =============================================================================
+// FILE: components/materials/material-transcribe-button.tsx
+// WHAT THIS FILE DOES:
+//   The button on an audio material that starts (or retries) turning the audio
+//   into text. It calls the transcribe server action and refreshes so the new
+//   transcript and Ready status appear.
+// =============================================================================
 "use client";
 
 import { useState } from "react";

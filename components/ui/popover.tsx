@@ -1,5 +1,14 @@
 "use client"
 
+// =============================================================================
+// FILE: components/ui/popover.tsx  (shadcn/ui primitive: generated, then themed)
+// WHAT THIS IS: A small floating panel anchored to a trigger.
+//   It is a reusable interface building block added from the shadcn/ui library
+//   and themed for LUMII. It is shared across many screens, so change with care.
+// HOW TO RESTYLE: the look comes from the Tailwind classes (and the variant
+//   definitions) in this file; editing them restyles every Popover in the app.
+// =============================================================================
+
 import * as React from "react"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 

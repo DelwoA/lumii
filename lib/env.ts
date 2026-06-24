@@ -1,3 +1,19 @@
+// =============================================================================
+// FILE: lib/env.ts
+// WHAT THIS FILE DOES:
+//   Reads "environment variables", which are the secret settings kept OUTSIDE
+//   the code (database address, API keys, and so on). They live in a .env file
+//   locally and in the hosting settings in production, so secrets are never
+//   written into the code itself.
+//
+//   This file describes every setting (with Zod), fills in sensible defaults,
+//   and offers requireServerEnv(...) which throws a clear error if a genuinely
+//   required secret is missing. Secrets are optional in the schema so the app
+//   can still build for testing without them. Secret VALUES are never logged.
+//
+// HOW TO ADD A NEW SETTING: add it to serverSchema below, then read it with
+//   requireServerEnv("YOUR_KEY") where it is needed.
+// =============================================================================
 import { z } from "zod";
 
 /**

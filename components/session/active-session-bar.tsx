@@ -1,3 +1,12 @@
+// =============================================================================
+// FILE: components/session/active-session-bar.tsx
+// WHAT THIS FILE DOES:
+//   The bar that appears across the top while a study session is running. It
+//   shows a live timer, sends the regular "still here" heartbeat, and has the
+//   Stop button (which opens a short reflection dialog before saving). On stop it
+//   shows the result toast and triggers any celebration. It reads/writes the
+//   shared session store (lib/stores/session-store.ts).
+// =============================================================================
 "use client";
 
 import { useEffect, useState } from "react";

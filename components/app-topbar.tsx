@@ -1,3 +1,11 @@
+// =============================================================================
+// FILE: components/app-topbar.tsx
+// WHAT THIS FILE DOES:
+//   The bar across the top of every signed-in page. It holds the button that
+//   collapses the sidebar, the "Start session" button, and the profile menu.
+//   STYLE: the bar's look (height, border, background) is the className on the
+//   <header> below; edit it to restyle the top bar.
+// =============================================================================
 "use client";
 
 import { SidebarTrigger } from "@/components/ui/sidebar";
