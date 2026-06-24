@@ -270,7 +270,10 @@ model StudySession {
 }
 
 model MoodCheckin {
-  // PRIVATE. Label + classification only; NEVER raw text. Auto-expires.
+  // PRIVATE to the user (never shown on the public profile). Stores the user's
+  // own description plus an AI-generated heading + mood; kept until the user
+  // deletes it (expiresAt null = no auto-expiry). selfLabel/classifiedLabel are
+  // retained for older rows.
   id              String        @id @default(cuid())
   userId          String
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -278,7 +281,11 @@ model MoodCheckin {
   studySession    StudySession? @relation(fields: [studySessionId], references: [id], onDelete: SetNull)
   selfLabel       MoodLabel?
   classifiedLabel MoodLabel?
-  expiresAt       DateTime
+  description     String?       @db.Text
+  heading         String?
+  mood            String?
+  valence         String?
+  expiresAt       DateTime?
   createdAt       DateTime      @default(now())
 
   @@index([userId, createdAt])

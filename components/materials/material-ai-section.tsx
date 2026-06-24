@@ -31,7 +31,9 @@ export function MaterialAISection({
     const res = await generateSummary(materialId);
     setBusy(false);
     if (res.ok) {
-      toast.success("Summary ready");
+      toast.success(
+        res.xpAwarded ? `Summary ready · +${res.xpAwarded} XP` : "Summary ready",
+      );
       router.refresh();
       celebrate(res.celebration);
     } else {

@@ -66,6 +66,14 @@ export function TopicCreateDialog({ subjectId }: { subjectId: string }) {
             />
           </div>
           <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={pending}
+            >
+              Cancel
+            </Button>
             <Button type="submit" disabled={pending}>
               {pending ? "Adding…" : "Add topic"}
             </Button>

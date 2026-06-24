@@ -16,12 +16,14 @@ import type { Celebration, UnlockedTrophy } from "./celebration";
 /** Aggregate stats used for trophy checks and the achievements view. */
 async function getStats(userId: string): Promise<TrophyStats> {
   const [
+    sessionsEnded,
     sessionsCompleted,
     quizzesCompleted,
     summariesGenerated,
     perfectDays,
     profile,
   ] = await Promise.all([
+    prisma.studySession.count({ where: { userId, endedAt: { not: null } } }),
     prisma.studySession.count({
       where: { userId, endedAt: { not: null }, qualityScore: { not: null } },
     }),
@@ -31,6 +33,7 @@ async function getStats(userId: string): Promise<TrophyStats> {
     prisma.gamificationProfile.findUnique({ where: { userId } }),
   ]);
   return {
+    sessionsEnded,
     sessionsCompleted,
     quizzesCompleted,
     summariesGenerated,

@@ -6,6 +6,9 @@
  */
 
 export interface TrophyStats {
+  /** Any finished session (used for the first-session onboarding trophy). */
+  sessionsEnded: number;
+  /** Sessions that ran long enough to be scored (used for milestone trophies). */
   sessionsCompleted: number;
   quizzesCompleted: number;
   summariesGenerated: number;
@@ -32,7 +35,7 @@ export const TROPHIES: readonly TrophyDef[] = [
     description: "Complete your first study session.",
     icon: "Footprints",
     xp: 15,
-    check: (s) => s.sessionsCompleted >= 1,
+    check: (s) => s.sessionsEnded >= 1,
   },
   {
     code: "five-sessions",

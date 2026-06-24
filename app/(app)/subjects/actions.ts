@@ -42,6 +42,21 @@ export async function archiveSubject(subjectId: string): Promise<ActionState> {
   return OK;
 }
 
+/**
+ * Permanently delete a subject. Its topics are removed via the DB cascade and
+ * its materials are kept (their subjectId/topicId are set null), so deleting a
+ * subject never destroys uploaded materials. Owner-scoped.
+ */
+export async function deleteSubject(subjectId: string): Promise<ActionState> {
+  const user = await requireDbUser();
+  const res = await prisma.subject.deleteMany({
+    where: { id: subjectId, userId: user.id },
+  });
+  if (res.count === 0) return fail("Subject not found");
+  revalidatePath("/subjects");
+  return OK;
+}
+
 export async function createTopic(
   subjectId: string,
   _prev: ActionState,
@@ -76,6 +91,22 @@ export async function archiveTopic(topicId: string): Promise<ActionState> {
     where: { id: topicId, userId: user.id },
     data: { archivedAt: new Date() },
   });
+  revalidatePath(`/subjects/${topic.subjectId}`);
+  return OK;
+}
+
+/**
+ * Permanently delete a topic. Its materials are kept (their topicId is set
+ * null). Owner-scoped.
+ */
+export async function deleteTopic(topicId: string): Promise<ActionState> {
+  const user = await requireDbUser();
+  const topic = await prisma.topic.findFirst({
+    where: { id: topicId, userId: user.id },
+    select: { subjectId: true },
+  });
+  if (!topic) return fail("Topic not found");
+  await prisma.topic.deleteMany({ where: { id: topicId, userId: user.id } });
   revalidatePath(`/subjects/${topic.subjectId}`);
   return OK;
 }

@@ -15,7 +15,10 @@ import { bumpEngagement } from "@/lib/sessions/service";
 import type { ActionState } from "@/lib/forms";
 import type { Celebration } from "@/lib/gamification/celebration";
 
-export type SummaryResult = ActionState & { celebration?: Celebration };
+export type SummaryResult = ActionState & {
+  celebration?: Celebration;
+  xpAwarded?: number;
+};
 
 export async function generateSummary(materialId: string): Promise<SummaryResult> {
   const user = await requireDbUser();
@@ -36,7 +39,7 @@ export async function generateSummary(materialId: string): Promise<SummaryResult
     });
     // Capture rank before awarding so we can detect a rank-up to celebrate.
     const rankBefore = await getCurrentRank(user.id);
-    await awardXp({
+    const { xpAwarded } = await awardXp({
       userId: user.id,
       type: "SUMMARY_GENERATED",
       requestedXp: XP_RULES.SUMMARY_GENERATED,
@@ -47,7 +50,7 @@ export async function generateSummary(materialId: string): Promise<SummaryResult
     await bumpEngagement(user.id, "summariesViewed");
     const celebration = await runAwardChecks(user.id, rankBefore);
     revalidatePath(`/materials/${materialId}`);
-    return { ok: true, celebration };
+    return { ok: true, celebration, xpAwarded };
   } catch {
     return { ok: false, error: "Could not generate the summary. Please try again." };
   }

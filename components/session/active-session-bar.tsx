@@ -68,7 +68,8 @@ export function ActiveSessionBar() {
       return;
     }
     if (res.scored) {
-      toast.success(`Session saved. Quality ${res.qualityScore}/100`);
+      const xp = res.xpAwarded ? ` · +${res.xpAwarded} XP` : "";
+      toast.success(`Session saved. Quality ${res.qualityScore}/100${xp}`);
     } else {
       toast.success("Session saved (too short to score)");
     }

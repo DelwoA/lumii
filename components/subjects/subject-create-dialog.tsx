@@ -86,6 +86,14 @@ export function SubjectCreateDialog() {
             </div>
           </div>
           <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={pending}
+            >
+              Cancel
+            </Button>
             <Button type="submit" disabled={pending}>
               {pending ? "Creating…" : "Create subject"}
             </Button>

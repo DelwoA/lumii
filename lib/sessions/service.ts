@@ -65,7 +65,11 @@ async function finalize(args: {
   autoCloseReason?: "idle" | "cap" | null;
   goalCompleted?: boolean;
   reflection?: string;
-}): Promise<{ quality: SessionQualityBreakdown | null; celebration: Celebration }> {
+}): Promise<{
+  quality: SessionQualityBreakdown | null;
+  celebration: Celebration;
+  xpAwarded: number;
+}> {
   const { session, endMs, explicitStop, autoClosed } = args;
   const rankBefore = await getCurrentRank(session.userId);
   const credited = creditedDurationSec(session.startedAt.getTime(), endMs);
@@ -100,7 +104,9 @@ async function finalize(args: {
       autoCloseReason: args.autoCloseReason ?? null,
     },
   });
-  if (closed.count === 0) return { quality: null, celebration: NO_CELEBRATION };
+  if (closed.count === 0) {
+    return { quality: null, celebration: NO_CELEBRATION, xpAwarded: 0 };
+  }
 
   // A study session that met the per-session adherence bar completes its plan.
   if (
@@ -118,8 +124,9 @@ async function finalize(args: {
     });
   }
 
+  let xpAwarded = 0;
   if (quality) {
-    await awardXp({
+    const awarded = await awardXp({
       userId: session.userId,
       type: "SESSION_COMPLETED",
       requestedXp: sessionXp(quality.total),
@@ -128,6 +135,7 @@ async function finalize(args: {
       sourceId: session.id,
       payload: { qualityScore: quality.total, autoClosed },
     });
+    xpAwarded = awarded.xpAwarded;
   }
 
   // Best-effort gamification follow-ups (adherent/perfect-day XP, streak,
@@ -146,7 +154,7 @@ async function finalize(args: {
     // ignore
   }
 
-  return { quality, celebration };
+  return { quality, celebration, xpAwarded };
 }
 
 /** Auto-close an open session if it is idle or past the hard cap. */
@@ -286,7 +294,7 @@ export async function stopSession(
 
   const capEndMs = open.startedAt.getTime() + HARD_CAP_SEC * 1000;
   const endMs = Math.min(Date.now(), capEndMs);
-  const { quality, celebration } = await finalize({
+  const { quality, celebration, xpAwarded } = await finalize({
     session: open,
     endMs,
     explicitStop: true,
@@ -301,6 +309,7 @@ export async function stopSession(
     qualityScore: quality?.total ?? null,
     scored: quality !== null,
     celebration,
+    xpAwarded,
   };
 }
 

@@ -16,6 +16,7 @@ interface StopOutcome {
   qualityScore?: number | null;
   scored?: boolean;
   celebration?: Celebration;
+  xpAwarded?: number;
   error?: string;
 }
 
@@ -74,6 +75,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           qualityScore: res.qualityScore,
           scored: res.scored,
           celebration: res.celebration,
+          xpAwarded: res.xpAwarded,
         }
       : { ok: false, error: res.error };
   },

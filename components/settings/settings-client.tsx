@@ -266,8 +266,9 @@ export function SettingsClient({
         <div>
           <h2 className="font-medium">Privacy</h2>
           <p className="text-muted-foreground text-sm">
-            Mood check-ins store only a label and expire after 30 days. You can
-            delete them all now.
+            Mood check-ins store your own words plus an AI heading and mood.
+            They&apos;re private to you, never shown on your public profile, and
+            kept until you delete them. You can delete them all now.
           </p>
         </div>
         <AlertDialog>

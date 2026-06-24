@@ -2,77 +2,68 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Send } from "lucide-react";
-import type { MoodLabel } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { logMoodFromText, logMoodSelf } from "@/app/(app)/mood/actions";
+import { Textarea } from "@/components/ui/textarea";
+import { logMood, type MoodResult } from "@/app/(app)/mood/actions";
+import type { MoodValence } from "@/lib/ai/mood";
 
-const CHIPS: { label: MoodLabel; text: string }[] = [
-  { label: "MOTIVATED", text: "Motivated" },
-  { label: "NEUTRAL", text: "Okay" },
-  { label: "TIRED", text: "Tired" },
-  { label: "STRESSED", text: "Stressed" },
-  { label: "FRUSTRATED", text: "Frustrated" },
-];
-
-const ACK: Record<MoodLabel, string> = {
-  MOTIVATED: "Love that energy. Ride the wave while it lasts.",
+const ACK: Record<MoodValence, string> = {
+  POSITIVE: "Love that energy. Keep riding it while it lasts.",
   NEUTRAL: "Steady is good. One step at a time.",
-  TIRED: "Take it gentle. Short, focused bursts work well today.",
-  STRESSED: "Breathe. Break the work into smaller pieces.",
-  FRUSTRATED: "Tough moments pass. Maybe revisit a summary before pushing on.",
+  NEGATIVE:
+    "Tough moments pass. Be kind to yourself and take it in small steps.",
 };
+
+const PLACEHOLDER =
+  "e.g. Finished my calculus revision and feeling on top of it, but a little nervous about tomorrow's quiz.";
+
+type Checked = Extract<MoodResult, { ok: true }>;
 
 export function MoodCheckin() {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [ack, setAck] = useState<string | null>(null);
+  const [result, setResult] = useState<Checked | null>(null);
 
-  function acknowledge(label: MoodLabel | null) {
-    setAck(label ? ACK[label] : "Thanks for checking in.");
-  }
-
-  async function submitText() {
+  async function submit() {
     const value = text.trim();
     if (!value || busy) return;
     setBusy(true);
-    const res = await logMoodFromText(value);
+    const res = await logMood(value);
     setBusy(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
     setText("");
-    if (!res.ok) {
-      toast.error(res.error);
-      return;
-    }
-    acknowledge(res.label);
+    setResult(res);
   }
 
-  async function submitSelf(label: MoodLabel) {
-    if (busy) return;
-    setBusy(true);
-    const res = await logMoodSelf(label);
-    setBusy(false);
-    if (!res.ok) {
-      toast.error(res.error);
-      return;
-    }
-    acknowledge(res.label);
-  }
-
-  if (ack) {
+  if (result) {
     return (
       <Card className="p-5">
         <h2 className="font-medium">Checked in</h2>
-        <p className="text-muted-foreground mt-2 text-sm">{ack}</p>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mt-3 -ml-2"
-          onClick={() => setAck(null)}
-        >
-          Check in again
-        </Button>
+        <p className="mt-3 text-sm font-medium">{result.heading}</p>
+        <p className="text-muted-foreground mt-1 text-sm">
+          <span className="text-foreground/80 font-medium">Mood:</span>{" "}
+          {result.mood}
+        </p>
+        <p className="text-muted-foreground mt-2 text-sm">
+          {ACK[result.valence]}
+        </p>
+        <div className="mt-3 flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-2"
+            onClick={() => setResult(null)}
+          >
+            Check in again
+          </Button>
+          <span className="text-muted-foreground text-xs">
+            Saved to your Progress page.
+          </span>
+        </div>
       </Card>
     );
   }
@@ -80,45 +71,36 @@ export function MoodCheckin() {
   return (
     <Card className="p-5">
       <h2 className="font-medium">How&apos;s studying feeling?</h2>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {CHIPS.map((c) => (
-          <Button
-            key={c.label}
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            disabled={busy}
-            onClick={() => submitSelf(c.label)}
-          >
-            {c.text}
-          </Button>
-        ))}
-      </div>
-      <div className="mt-3 flex gap-2">
-        <Input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Or describe it in your own words…"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              void submitText();
-            }
-          }}
-        />
+      <p className="text-muted-foreground mt-1 text-sm">
+        Describe how studying feels in your own words.
+      </p>
+      <Textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder={PLACEHOLDER}
+        rows={3}
+        maxLength={1000}
+        className="mt-3"
+        onKeyDown={(e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+            e.preventDefault();
+            void submit();
+          }
+        }}
+      />
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-muted-foreground max-w-md text-xs">
+          Your check-in (your words, plus an AI heading and mood) is private to
+          you and kept until you delete it. See it on the Progress page.
+        </p>
         <Button
-          size="icon"
-          aria-label="Submit check-in"
+          className="shrink-0"
           disabled={busy || !text.trim()}
-          onClick={submitText}
+          onClick={submit}
         >
-          <Send className="size-4" />
+          {busy ? "Checking in…" : "Check in"}
         </Button>
       </div>
-      <p className="text-muted-foreground mt-2 text-xs">
-        Your words are used once to gauge your mood, then discarded. Only the
-        mood label is kept (for 30 days), and it stays private.
-      </p>
     </Card>
   );
 }

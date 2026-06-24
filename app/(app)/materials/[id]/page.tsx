@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { presignDownload } from "@/lib/storage/r2";
@@ -53,6 +55,14 @@ export default async function MaterialDetailPage({
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
+      <Link
+        href="/materials"
+        className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-1.5 text-sm transition-colors"
+      >
+        <ArrowLeft className="size-4" />
+        Back to materials
+      </Link>
+
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">

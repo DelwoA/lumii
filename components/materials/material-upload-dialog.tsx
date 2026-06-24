@@ -315,6 +315,14 @@ export function MaterialUploadDialog({
             )}
           </div>
           <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={busy || transcribing}
+            >
+              Cancel
+            </Button>
             <Button type="submit" disabled={busy || transcribing}>
               {buttonLabel}
             </Button>

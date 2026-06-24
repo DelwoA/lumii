@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { LumenSpark } from "@/components/lumen-spark";
 import { SubjectCreateDialog } from "@/components/subjects/subject-create-dialog";
+import { DeleteMenu } from "@/components/subjects/delete-menu";
 
 export const dynamic = "force-dynamic";
 
@@ -42,22 +43,27 @@ export default async function SubjectsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {subjects.map((s) => (
-            <Link key={s.id} href={`/subjects/${s.id}`} className="group">
-              <Card className="hover:border-primary/50 p-4 transition group-hover:shadow-sm">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="size-3 rounded-full"
-                    style={{
-                      backgroundColor: s.color ?? "var(--muted-foreground)",
-                    }}
-                  />
-                  <span className="font-medium">{s.name}</span>
-                </div>
-                <p className="text-muted-foreground mt-2 text-xs">
-                  {s._count.topics} topics · {s._count.materials} materials
-                </p>
-              </Card>
-            </Link>
+            <div key={s.id} className="group relative">
+              <Link href={`/subjects/${s.id}`} className="block">
+                <Card className="p-4 transition group-hover:ring-primary/50 group-hover:shadow-sm">
+                  <div className="flex items-center gap-2 pr-8">
+                    <span
+                      className="size-3 shrink-0 rounded-full"
+                      style={{
+                        backgroundColor: s.color ?? "var(--muted-foreground)",
+                      }}
+                    />
+                    <span className="truncate font-medium">{s.name}</span>
+                  </div>
+                  <p className="text-muted-foreground mt-2 text-xs">
+                    {s._count.topics} topics · {s._count.materials} materials
+                  </p>
+                </Card>
+              </Link>
+              <div className="absolute top-2 right-2">
+                <DeleteMenu kind="subject" id={s.id} name={s.name} />
+              </div>
+            </div>
           ))}
         </div>
       )}

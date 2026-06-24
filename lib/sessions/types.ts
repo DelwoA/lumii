@@ -22,6 +22,7 @@ export type StopResult =
       qualityScore: number | null;
       scored: boolean;
       celebration?: Celebration;
+      xpAwarded?: number;
     }
   | { ok: false; error: string };
 

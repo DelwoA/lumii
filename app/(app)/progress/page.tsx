@@ -1,16 +1,34 @@
 import { BookOpen, Clock, Flame, Brain } from "lucide-react";
 import { requireDbUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { getProgressData } from "@/lib/progress/service";
 import { formatDurationShort } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { ProgressCharts } from "@/components/progress/progress-charts";
 import { ActivityCalendar } from "@/components/progress/activity-calendar";
+import { MoodHistory } from "@/components/progress/mood-history";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProgressPage() {
   const user = await requireDbUser();
   const data = await getProgressData(user.id, user.timezone || "UTC");
+  const moods = await prisma.moodCheckin.findMany({
+    where: {
+      userId: user.id,
+      OR: [{ description: { not: null } }, { heading: { not: null } }],
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    select: {
+      id: true,
+      heading: true,
+      mood: true,
+      valence: true,
+      description: true,
+      createdAt: true,
+    },
+  });
 
   const stats = [
     {
@@ -61,6 +79,8 @@ export default async function ProgressPage() {
         </p>
         <ActivityCalendar data={data.activityCalendar} />
       </Card>
+
+      <MoodHistory entries={moods} timezone={user.timezone || "UTC"} />
     </div>
   );
 }

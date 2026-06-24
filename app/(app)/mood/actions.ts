@@ -1,59 +1,46 @@
 "use server";
 
-import type { MoodLabel } from "@prisma/client";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { classifyMood, MOOD_LABELS } from "@/lib/ai/mood";
-
-const RETENTION_DAYS = 30;
+import { analyzeMood, type MoodValence } from "@/lib/ai/mood";
 
 export type MoodResult =
-  | { ok: true; label: MoodLabel | null }
+  | { ok: true; heading: string; mood: string; valence: MoodValence }
   | { ok: false; error: string };
 
-function expiry(): Date {
-  return new Date(Date.now() + RETENTION_DAYS * 24 * 60 * 60 * 1000);
-}
-
-/** Purge any of the user's expired mood rows (compute-on-access retention). */
-async function purgeExpired(userId: string): Promise<void> {
-  await prisma.moodCheckin.deleteMany({
-    where: { userId, expiresAt: { lt: new Date() } },
-  });
-}
-
-/** Classify a free-text check-in and store the LABEL ONLY (never the text). */
-export async function logMoodFromText(text: string): Promise<MoodResult> {
+/**
+ * Record a free-text mood check-in. The description is analysed by the model
+ * into a short heading + a 1-3 word mood + a coarse valence, and all of it is
+ * stored privately (kept until the user deletes it; never on the public page).
+ */
+export async function logMood(description: string): Promise<MoodResult> {
   const user = await requireDbUser();
-  await purgeExpired(user.id);
+  const trimmed = description.trim();
+  if (!trimmed) {
+    return { ok: false, error: "Write a little about how studying feels." };
+  }
   try {
-    const { label } = await classifyMood(text);
+    const { heading, mood, valence } = await analyzeMood(trimmed);
     await prisma.moodCheckin.create({
-      data: { userId: user.id, classifiedLabel: label, expiresAt: expiry() },
+      data: {
+        userId: user.id,
+        description: trimmed.slice(0, 2000),
+        heading,
+        mood,
+        valence,
+        // expiresAt left null: kept until the user deletes it.
+      },
     });
     await prisma.activityEvent.create({
       data: { userId: user.id, type: "MOOD_LOGGED", xpDelta: 0 },
     });
-    return { ok: true, label };
+    return { ok: true, heading, mood, valence };
   } catch {
-    return { ok: false, error: "Could not record your check-in. Please try again." };
+    return {
+      ok: false,
+      error: "Could not record your check-in. Please try again.",
+    };
   }
-}
-
-/** Record a self-selected mood label (no AI call). */
-export async function logMoodSelf(label: MoodLabel): Promise<MoodResult> {
-  const user = await requireDbUser();
-  if (!MOOD_LABELS.includes(label)) {
-    return { ok: false, error: "Unknown mood" };
-  }
-  await purgeExpired(user.id);
-  await prisma.moodCheckin.create({
-    data: { userId: user.id, selfLabel: label, expiresAt: expiry() },
-  });
-  await prisma.activityEvent.create({
-    data: { userId: user.id, type: "MOOD_LOGGED", xpDelta: 0 },
-  });
-  return { ok: true, label };
 }
 
 /** Delete all of the user's mood data (privacy control in Settings). */

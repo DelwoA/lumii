@@ -1,8 +1,11 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { TopicCreateDialog } from "@/components/subjects/topic-create-dialog";
+import { DeleteMenu } from "@/components/subjects/delete-menu";
 
 export const dynamic = "force-dynamic";
 
@@ -25,14 +28,22 @@ export default async function SubjectDetailPage({
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <Link
+        href="/subjects"
+        className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-1.5 text-sm transition-colors"
+      >
+        <ArrowLeft className="size-4" />
+        Back to subjects
+      </Link>
+
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <span
-            className="size-4 rounded-full"
+            className="size-4 shrink-0 rounded-full"
             style={{ backgroundColor: subject.color ?? "var(--muted-foreground)" }}
           />
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-semibold tracking-tight">
               {subject.name}
             </h1>
             <p className="text-muted-foreground text-sm">
@@ -41,7 +52,15 @@ export default async function SubjectDetailPage({
             </p>
           </div>
         </div>
-        <TopicCreateDialog subjectId={subject.id} />
+        <div className="flex shrink-0 items-center gap-2">
+          <TopicCreateDialog subjectId={subject.id} />
+          <DeleteMenu
+            kind="subject"
+            id={subject.id}
+            name={subject.name}
+            redirectTo="/subjects"
+          />
+        </div>
       </div>
 
       {subject.topics.length === 0 ? (
@@ -51,8 +70,12 @@ export default async function SubjectDetailPage({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {subject.topics.map((topic) => (
-            <Card key={topic.id} className="p-4">
-              <span className="font-medium">{topic.name}</span>
+            <Card
+              key={topic.id}
+              className="flex-row items-center justify-between gap-2 p-4"
+            >
+              <span className="truncate font-medium">{topic.name}</span>
+              <DeleteMenu kind="topic" id={topic.id} name={topic.name} />
             </Card>
           ))}
         </div>

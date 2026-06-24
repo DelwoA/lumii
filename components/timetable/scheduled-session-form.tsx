@@ -249,7 +249,15 @@ export function ScheduledSessionForm({
           </div>
         </div>
 
-        <SheetFooter>
+        <SheetFooter className="flex-row justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
+            Cancel
+          </Button>
           <Button onClick={onSubmit} disabled={saving}>
             {saving ? "Saving…" : editing ? "Save changes" : "Schedule session"}
           </Button>
