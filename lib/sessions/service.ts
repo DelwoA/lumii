@@ -14,7 +14,6 @@ import {
   MIN_SCORED_DURATION_SEC,
   SESSION_QUALITY_VERSION,
   computeSessionQuality,
-  type SessionQualityBreakdown,
 } from "@/lib/gamification/session-quality";
 import {
   HARD_CAP_SEC,
@@ -66,7 +65,8 @@ async function finalize(args: {
   goalCompleted?: boolean;
   reflection?: string;
 }): Promise<{
-  quality: SessionQualityBreakdown | null;
+  qualityScore: number | null;
+  scored: boolean;
   celebration: Celebration;
   xpAwarded: number;
 }> {
@@ -105,7 +105,38 @@ async function finalize(args: {
     },
   });
   if (closed.count === 0) {
-    return { quality: null, celebration: NO_CELEBRATION, xpAwarded: 0 };
+    // Another path (e.g. a heartbeat auto-close racing an explicit stop) already
+    // closed this session. The score is persisted, but the winner may not have
+    // written the completion XP yet, so idempotently ensure it (no double-award
+    // via the deterministic key) and then read the canonical amount from the
+    // ledger — guaranteed to exist once awardXp returns — instead of zeroing it.
+    const row = await prisma.studySession.findUnique({
+      where: { id: session.id },
+      select: { qualityScore: true, autoClosed: true },
+    });
+    let xpAwarded = 0;
+    if (row?.qualityScore != null) {
+      await awardXp({
+        userId: session.userId,
+        type: "SESSION_COMPLETED",
+        requestedXp: sessionXp(row.qualityScore),
+        idempotencyKey: `session-completed:${session.id}`,
+        sourceType: "study_session",
+        sourceId: session.id,
+        payload: { qualityScore: row.qualityScore, autoClosed: row.autoClosed },
+      });
+      const event = await prisma.activityEvent.findUnique({
+        where: { idempotencyKey: `session-completed:${session.id}` },
+        select: { xpDelta: true },
+      });
+      xpAwarded = event?.xpDelta ?? 0;
+    }
+    return {
+      qualityScore: row?.qualityScore ?? null,
+      scored: row?.qualityScore != null,
+      celebration: NO_CELEBRATION,
+      xpAwarded,
+    };
   }
 
   // A study session that met the per-session adherence bar completes its plan.
@@ -154,7 +185,12 @@ async function finalize(args: {
     // ignore
   }
 
-  return { quality, celebration, xpAwarded };
+  return {
+    qualityScore: quality?.total ?? null,
+    scored: quality !== null,
+    celebration,
+    xpAwarded,
+  };
 }
 
 /** Auto-close an open session if it is idle or past the hard cap. */
@@ -294,7 +330,7 @@ export async function stopSession(
 
   const capEndMs = open.startedAt.getTime() + HARD_CAP_SEC * 1000;
   const endMs = Math.min(Date.now(), capEndMs);
-  const { quality, celebration, xpAwarded } = await finalize({
+  const { qualityScore, scored, celebration, xpAwarded } = await finalize({
     session: open,
     endMs,
     explicitStop: true,
@@ -306,8 +342,8 @@ export async function stopSession(
   return {
     ok: true,
     durationSec: creditedDurationSec(open.startedAt.getTime(), endMs),
-    qualityScore: quality?.total ?? null,
-    scored: quality !== null,
+    qualityScore,
+    scored,
     celebration,
     xpAwarded,
   };

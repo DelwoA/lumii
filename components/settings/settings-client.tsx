@@ -283,8 +283,8 @@ export function SettingsClient({
             <AlertDialogHeader>
               <AlertDialogTitle>Delete all mood data?</AlertDialogTitle>
               <AlertDialogDescription>
-                This permanently removes every mood check-in label on your
-                account. This can&apos;t be undone.
+                This permanently removes every mood check-in on your account,
+                including your own words. This can&apos;t be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

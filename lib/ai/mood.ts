@@ -2,6 +2,7 @@ import "server-only";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { withModelFallback } from "@/lib/ai/provider";
+import { clampMoodText } from "@/lib/mood/text";
 
 /** Coarse emotional direction, used only to aggregate an "average feeling". */
 export const MOOD_VALENCES = ["POSITIVE", "NEUTRAL", "NEGATIVE"] as const;
@@ -18,6 +19,13 @@ export interface MoodAnalysis {
   mood: string;
   valence: MoodValence;
 }
+
+/** Used whenever the input or the model output yields no usable feeling. */
+const NEUTRAL_FALLBACK: MoodAnalysis = {
+  heading: "Check-in",
+  mood: "neutral",
+  valence: "NEUTRAL",
+};
 
 const MOOD_SYSTEM = `You are an empathetic study-wellbeing assistant. A student writes a short, free-text note about how their studying is going right now. From that note produce exactly three fields.
 
@@ -51,8 +59,8 @@ function tidy(value: string, maxWords: number, maxChars: number): string {
  * coarse valence. Falls back to a neutral check-in on empty/unclear input.
  */
 export async function analyzeMood(description: string): Promise<MoodAnalysis> {
-  const trimmed = description.trim().slice(0, 1000);
-  if (!trimmed) return { heading: "Check-in", mood: "neutral", valence: "NEUTRAL" };
+  const trimmed = clampMoodText(description);
+  if (!trimmed) return NEUTRAL_FALLBACK;
 
   const { result } = await withModelFallback((model) =>
     generateObject({
@@ -64,9 +72,11 @@ export async function analyzeMood(description: string): Promise<MoodAnalysis> {
     }),
   );
 
-  return {
-    heading: tidy(result.object.heading, 6, 60) || "Check-in",
-    mood: tidy(result.object.mood, 3, 40) || "neutral",
-    valence: result.object.valence,
-  };
+  const heading = tidy(result.object.heading, 6, 60);
+  const mood = tidy(result.object.mood, 3, 40);
+  // If either field is empty after tidying, fall back wholesale so we never mix
+  // a neutral placeholder with the model's (now unsupported) valence.
+  if (!heading || !mood) return NEUTRAL_FALLBACK;
+
+  return { heading, mood, valence: result.object.valence };
 }

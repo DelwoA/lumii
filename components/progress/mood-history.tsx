@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { MOOD_WINDOW_DAYS, type MoodSummary } from "@/lib/mood/summary";
 
 export interface MoodEntry {
   id: string;
@@ -9,43 +10,20 @@ export interface MoodEntry {
   createdAt: Date;
 }
 
-const WINDOW_DAYS = 14;
-
-/** Deterministic "average feeling" over the recent window, from valence counts. */
-function summarize(entries: MoodEntry[]) {
-  const cutoff = Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000;
-  const recent = entries.filter((e) => e.createdAt.getTime() >= cutoff);
-  let pos = 0;
-  let neu = 0;
-  let neg = 0;
-  for (const e of recent) {
-    if (e.valence === "POSITIVE") pos += 1;
-    else if (e.valence === "NEGATIVE") neg += 1;
-    else neu += 1;
-  }
-  const total = pos + neu + neg;
-  if (total === 0) return null;
-  const headline =
-    pos > neu && pos > neg
-      ? "Mostly positive lately"
-      : neg > neu && neg > pos
-        ? "A tough stretch lately"
-        : "A balanced mix lately";
-  return { headline, pos, neu, neg, total };
-}
-
 /**
  * The private mood log on the Progress page: a deterministic "average feeling"
- * summary plus each timestamped check-in (heading, mood, original description).
+ * summary (computed server-side over the full window) plus each timestamped
+ * check-in (heading, mood, original description).
  */
 export function MoodHistory({
   entries,
+  summary,
   timezone,
 }: {
   entries: MoodEntry[];
+  summary: MoodSummary | null;
   timezone: string;
 }) {
-  const summary = summarize(entries);
   const fmt = new Intl.DateTimeFormat("en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -63,7 +41,7 @@ export function MoodHistory({
         <div className="bg-muted/30 mb-4 rounded-xl p-4">
           <p className="font-medium">{summary.headline}</p>
           <p className="text-muted-foreground mt-1 text-sm">
-            Last {WINDOW_DAYS} days · {summary.total} check-in
+            Last {MOOD_WINDOW_DAYS} days · {summary.total} check-in
             {summary.total === 1 ? "" : "s"} · {summary.pos} positive ·{" "}
             {summary.neu} neutral · {summary.neg} low
           </p>

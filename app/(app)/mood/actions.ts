@@ -3,6 +3,8 @@
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { analyzeMood, type MoodValence } from "@/lib/ai/mood";
+import { clampMoodText } from "@/lib/mood/text";
+import { purgeExpiredMoodCheckins } from "@/lib/mood/service";
 
 export type MoodResult =
   | { ok: true; heading: string; mood: string; valence: MoodValence }
@@ -15,16 +17,21 @@ export type MoodResult =
  */
 export async function logMood(description: string): Promise<MoodResult> {
   const user = await requireDbUser();
-  const trimmed = description.trim();
-  if (!trimmed) {
+  // Lazily purge expired legacy rows here too, so users who log regularly but
+  // rarely open Progress still get their old check-ins cleaned up on schedule.
+  await purgeExpiredMoodCheckins(user.id).catch(() => {});
+  // Single clamp: the same text is both analysed and stored, so the heading and
+  // mood always describe exactly what we keep.
+  const text = clampMoodText(description);
+  if (!text) {
     return { ok: false, error: "Write a little about how studying feels." };
   }
   try {
-    const { heading, mood, valence } = await analyzeMood(trimmed);
+    const { heading, mood, valence } = await analyzeMood(text);
     await prisma.moodCheckin.create({
       data: {
         userId: user.id,
-        description: trimmed.slice(0, 2000),
+        description: text,
         heading,
         mood,
         valence,

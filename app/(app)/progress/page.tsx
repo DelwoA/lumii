@@ -7,28 +7,38 @@ import { Card } from "@/components/ui/card";
 import { ProgressCharts } from "@/components/progress/progress-charts";
 import { ActivityCalendar } from "@/components/progress/activity-calendar";
 import { MoodHistory } from "@/components/progress/mood-history";
+import {
+  getMoodSummary,
+  purgeExpiredMoodCheckins,
+} from "@/lib/mood/service";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProgressPage() {
   const user = await requireDbUser();
   const data = await getProgressData(user.id, user.timezone || "UTC");
-  const moods = await prisma.moodCheckin.findMany({
-    where: {
-      userId: user.id,
-      OR: [{ description: { not: null } }, { heading: { not: null } }],
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-    select: {
-      id: true,
-      heading: true,
-      mood: true,
-      valence: true,
-      description: true,
-      createdAt: true,
-    },
-  });
+
+  // Purge expired (legacy) check-ins on access before reading the log.
+  await purgeExpiredMoodCheckins(user.id);
+  const [moodSummary, moods] = await Promise.all([
+    getMoodSummary(user.id),
+    prisma.moodCheckin.findMany({
+      where: {
+        userId: user.id,
+        OR: [{ description: { not: null } }, { heading: { not: null } }],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        heading: true,
+        mood: true,
+        valence: true,
+        description: true,
+        createdAt: true,
+      },
+    }),
+  ]);
 
   const stats = [
     {
@@ -80,7 +90,11 @@ export default async function ProgressPage() {
         <ActivityCalendar data={data.activityCalendar} />
       </Card>
 
-      <MoodHistory entries={moods} timezone={user.timezone || "UTC"} />
+      <MoodHistory
+        entries={moods}
+        summary={moodSummary}
+        timezone={user.timezone || "UTC"}
+      />
     </div>
   );
 }
