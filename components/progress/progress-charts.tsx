@@ -36,9 +36,17 @@ export function ProgressCharts({ data }: { data: ProgressData }) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <Card className="p-5">
-        <h2 className="mb-4 font-medium">Study minutes (last 14 days)</h2>
+        <h2 id="study-minutes-title" className="mb-4 font-medium">
+          Study minutes (last 14 days)
+        </h2>
+        <p className="sr-only">
+          Daily values:{" "}
+          {data.dailyStudy
+            .map((day) => `${day.label}, ${day.minutes} minutes`)
+            .join("; ")}
+        </p>
         <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data.dailyStudy}>
+          <BarChart data={data.dailyStudy} accessibilityLayer>
             <CartesianGrid vertical={false} stroke="var(--border)" />
             <XAxis
               dataKey="label"
@@ -47,20 +55,37 @@ export function ProgressCharts({ data }: { data: ProgressData }) {
               axisLine={false}
               interval="preserveStartEnd"
             />
-            <YAxis tick={axisTick} tickLine={false} axisLine={false} width={28} />
+            <YAxis
+              tick={axisTick}
+              tickLine={false}
+              axisLine={false}
+              width={28}
+            />
             <Tooltip
               contentStyle={tooltipStyle}
               cursor={{ fill: "var(--muted)", opacity: 0.4 }}
             />
-            <Bar dataKey="minutes" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+            <Bar
+              dataKey="minutes"
+              fill="var(--primary)"
+              radius={[4, 4, 0, 0]}
+            />
           </BarChart>
         </ResponsiveContainer>
       </Card>
 
       <Card className="p-5">
-        <h2 className="mb-4 font-medium">Weekly adherence (last 6 weeks)</h2>
+        <h2 id="weekly-adherence-title" className="mb-4 font-medium">
+          Weekly adherence (last 6 weeks)
+        </h2>
+        <p className="sr-only">
+          Weekly values:{" "}
+          {data.weeklyAdherence
+            .map((week) => `${week.week}, ${week.pct} percent`)
+            .join("; ")}
+        </p>
         <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data.weeklyAdherence}>
+          <BarChart data={data.weeklyAdherence} accessibilityLayer>
             <CartesianGrid vertical={false} stroke="var(--border)" />
             <XAxis
               dataKey="week"
@@ -86,13 +111,29 @@ export function ProgressCharts({ data }: { data: ProgressData }) {
       </Card>
 
       <Card className="p-5 lg:col-span-2">
-        <h2 className="mb-4 font-medium">XP growth (last 30 days)</h2>
+        <h2 id="xp-growth-title" className="mb-4 font-medium">
+          XP growth (last 30 days)
+        </h2>
+        <p className="sr-only">
+          XP values:{" "}
+          {data.xpCumulative
+            .map((day) => `${day.label}, ${day.xp} XP`)
+            .join("; ")}
+        </p>
         <ResponsiveContainer width="100%" height={240}>
-          <AreaChart data={data.xpCumulative}>
+          <AreaChart data={data.xpCumulative} accessibilityLayer>
             <defs>
               <linearGradient id="xpFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+                <stop
+                  offset="0%"
+                  stopColor="var(--primary)"
+                  stopOpacity={0.35}
+                />
+                <stop
+                  offset="100%"
+                  stopColor="var(--primary)"
+                  stopOpacity={0}
+                />
               </linearGradient>
             </defs>
             <CartesianGrid vertical={false} stroke="var(--border)" />
@@ -104,7 +145,12 @@ export function ProgressCharts({ data }: { data: ProgressData }) {
               interval="preserveStartEnd"
               minTickGap={24}
             />
-            <YAxis tick={axisTick} tickLine={false} axisLine={false} width={40} />
+            <YAxis
+              tick={axisTick}
+              tickLine={false}
+              axisLine={false}
+              width={40}
+            />
             <Tooltip contentStyle={tooltipStyle} />
             <Area
               type="monotone"

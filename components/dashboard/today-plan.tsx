@@ -32,7 +32,10 @@ export function TodayPlan({ sessions }: { sessions: TimetableSession[] }) {
     return (
       <p className="text-muted-foreground text-sm">
         Nothing planned for today.{" "}
-        <Link href="/timetable" className="text-primary underline-offset-4 hover:underline">
+        <Link
+          href="/timetable"
+          className="text-primary underline-offset-4 hover:underline"
+        >
           Plan a session
         </Link>
         .
@@ -45,7 +48,7 @@ export function TodayPlan({ sessions }: { sessions: TimetableSession[] }) {
       toast.error("Finish your current session first");
       return;
     }
-    const res = await start(s.id);
+    const res = await start({ scheduledSessionId: s.id });
     if (res.ok) {
       toast.success("Session started");
       router.refresh();
@@ -59,7 +62,10 @@ export function TodayPlan({ sessions }: { sessions: TimetableSession[] }) {
       {sessions.map((s) => {
         const done = s.status === "COMPLETED";
         return (
-          <li key={s.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+          <li
+            key={s.id}
+            className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+          >
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="truncate text-sm font-medium">{s.title}</span>

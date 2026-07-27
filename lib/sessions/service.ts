@@ -1,23 +1,11 @@
-// =============================================================================
-// FILE: lib/sessions/service.ts
-// WHAT THIS FILE DOES:
-//   All the back-end logic for a STUDY SESSION (the timed block a student starts
-//   and stops). This is where a session is created, kept alive by heartbeats,
-//   auto-closed if forgotten, and finally finalized (scored + points awarded).
-//
-// THE MAIN FUNCTIONS:
-//   - startSession:  begins a session (refuses a second one if one is open).
-//   - recordHeartbeat: the regular "still here" ping; also auto-closes if stale.
-//   - stopSession:   the student presses Stop; we finalize and score it.
-//   - finalize:      the shared closing logic (used by both Stop and auto-close):
-//                    score it, mark a planned session complete, award the points.
-//   - bumpEngagement: counts in-session activity (used by the quality score).
-//
-// SAFETY: finalize uses "close only if still open" so a Stop and an auto-close
-//   happening at the same moment cannot double-count a session.
-// =============================================================================
 import "server-only";
-import { Prisma, type StudySession } from "@prisma/client";
+
+import {
+  Prisma,
+  type SessionActivityType,
+  type SessionScoreStatus,
+  type StudySession,
+} from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { awardXp } from "@/lib/gamification/award";
 import { sessionXp } from "@/lib/gamification/xp";
@@ -27,52 +15,108 @@ import {
   processAdherenceForDay,
   runAwardChecks,
 } from "@/lib/gamification/service";
-import { NO_CELEBRATION, type Celebration } from "@/lib/gamification/celebration";
+import {
+  NO_CELEBRATION,
+  type Celebration,
+} from "@/lib/gamification/celebration";
 import {
   MIN_SCORED_DURATION_SEC,
   SESSION_QUALITY_VERSION,
   computeSessionQuality,
+  type SessionQualityBreakdown,
 } from "@/lib/gamification/session-quality";
 import {
   HARD_CAP_SEC,
   autoCloseDecision,
   creditedDurationSec,
 } from "@/lib/sessions/timing";
-import type { ActiveSession, StopResult } from "@/lib/sessions/types";
-
-export type EngagementField =
-  | "summariesViewed"
-  | "tutorQuestions"
-  | "quizAttempts"
-  | "explanationsReviewed";
+import type {
+  ActiveSession,
+  SessionStartInput,
+  StopResult,
+} from "@/lib/sessions/types";
 
 type SessionWithSchedule = StudySession & {
   scheduledSession?: { title: string; goal: string | null } | null;
 };
 
-function toActive(s: SessionWithSchedule): ActiveSession {
+function toActive(session: SessionWithSchedule): ActiveSession {
   return {
-    id: s.id,
-    startedAtMs: s.startedAt.getTime(),
-    targetDurationSec: s.targetDurationSec,
-    title: s.scheduledSession?.title ?? "Study session",
-    goal: s.scheduledSession?.goal ?? null,
-    scheduledSessionId: s.scheduledSessionId,
+    id: session.id,
+    startedAtMs: session.startedAt.getTime(),
+    targetDurationSec: session.targetDurationSec,
+    title: session.title || session.scheduledSession?.title || "Study session",
+    goal: session.goal ?? session.scheduledSession?.goal ?? null,
+    scheduledSessionId: session.scheduledSessionId,
   };
 }
 
-function isUniqueViolation(e: unknown): boolean {
+function isUniqueViolation(error: unknown): boolean {
   return (
-    e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002"
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
   );
 }
 
+function scoreStatus(
+  creditedDuration: number,
+  targetDuration: number,
+): SessionScoreStatus {
+  if (targetDuration <= 0) return "NO_TARGET";
+  if (creditedDuration < MIN_SCORED_DURATION_SEC) return "TOO_SHORT";
+  return "SCORED";
+}
+
+async function readCanonicalResult(session: StudySession): Promise<{
+  qualityScore: number | null;
+  scoreStatus: SessionScoreStatus;
+  qualityBreakdown: SessionQualityBreakdown | null;
+  xpAwarded: number;
+}> {
+  const row = await prisma.studySession.findUnique({
+    where: { id: session.id },
+    select: {
+      qualityScore: true,
+      scoreStatus: true,
+      qualityBreakdown: true,
+      autoClosed: true,
+      qualityVersion: true,
+    },
+  });
+  let xpAwarded = 0;
+  if (row?.qualityScore != null) {
+    await awardXp({
+      userId: session.userId,
+      type: "SESSION_COMPLETED",
+      requestedXp: sessionXp(row.qualityScore),
+      idempotencyKey: `session-completed:${session.id}`,
+      sourceType: "study_session",
+      sourceId: session.id,
+      payload: {
+        qualityScore: row.qualityScore,
+        qualityVersion: row.qualityVersion,
+        autoClosed: row.autoClosed,
+      },
+    });
+    const event = await prisma.activityEvent.findUnique({
+      where: { idempotencyKey: `session-completed:${session.id}` },
+      select: { xpDelta: true },
+    });
+    xpAwarded = event?.xpDelta ?? 0;
+  }
+  return {
+    qualityScore: row?.qualityScore ?? null,
+    scoreStatus: row?.scoreStatus ?? "PENDING",
+    qualityBreakdown:
+      (row?.qualityBreakdown as SessionQualityBreakdown | null) ?? null,
+    xpAwarded,
+  };
+}
+
 /**
- * Finalize an open session. Closes the row only if it is still open (so a
- * racing stop/reconcile cannot double-finalize), scores it when it ran long
- * enough, marks a linked scheduled session complete when sufficiently
- * adherent, and awards completion XP idempotently. Returns the quality
- * breakdown when scored (else null) plus any awards to celebrate.
+ * Close and score a session as one transaction. The close-if-open write makes
+ * retries and stop/heartbeat races idempotent; the persisted breakdown is the
+ * canonical explanation shown in completion and history views.
  */
 async function finalize(args: {
   session: StudySession;
@@ -84,7 +128,8 @@ async function finalize(args: {
   reflection?: string;
 }): Promise<{
   qualityScore: number | null;
-  scored: boolean;
+  scoreStatus: SessionScoreStatus;
+  qualityBreakdown: SessionQualityBreakdown | null;
   celebration: Celebration;
   xpAwarded: number;
 }> {
@@ -92,126 +137,139 @@ async function finalize(args: {
   const rankBefore = await getCurrentRank(session.userId);
   const credited = creditedDurationSec(session.startedAt.getTime(), endMs);
   const target = session.targetDurationSec ?? 0;
-  const scored = credited >= MIN_SCORED_DURATION_SEC && target > 0;
+  const status = scoreStatus(credited, target);
 
-  const quality = scored
-    ? computeSessionQuality({
-        creditedDurationSec: credited,
-        targetDurationSec: target,
-        explicitStop,
-        goalCompleted: args.goalCompleted ?? false,
+  const transactionResult = await prisma.$transaction(async (tx) => {
+    const closed = await tx.studySession.updateMany({
+      where: { id: session.id, userId: session.userId, endedAt: null },
+      data: {
+        endedAt: new Date(endMs),
+        actualDurationSec: credited,
+        goalCompleted: args.goalCompleted ?? session.goalCompleted ?? null,
+        reflection: args.reflection ?? session.reflection ?? null,
         autoClosed,
-        summariesViewed: session.summariesViewed,
-        tutorQuestions: session.tutorQuestions,
-        quizAttempts: session.quizAttempts,
-        explanationsReviewed: session.explanationsReviewed,
-      })
-    : null;
-
-  // Atomic close-if-open: count === 0 means another path already closed it.
-  const closed = await prisma.studySession.updateMany({
-    where: { id: session.id, endedAt: null },
-    data: {
-      endedAt: new Date(endMs),
-      actualDurationSec: credited,
-      goalCompleted: args.goalCompleted ?? session.goalCompleted ?? null,
-      reflection: args.reflection ?? session.reflection ?? null,
-      qualityScore: quality?.total ?? null,
-      qualityVersion: quality ? SESSION_QUALITY_VERSION : null,
-      autoClosed,
-      autoCloseReason: args.autoCloseReason ?? null,
-    },
-  });
-  if (closed.count === 0) {
-    // Another path (e.g. a heartbeat auto-close racing an explicit stop) already
-    // closed this session. The score is persisted, but the winner may not have
-    // written the completion XP yet, so idempotently ensure it (no double-award
-    // via the deterministic key) and then read the canonical amount from the
-    // ledger — guaranteed to exist once awardXp returns — instead of zeroing it.
-    const row = await prisma.studySession.findUnique({
-      where: { id: session.id },
-      select: { qualityScore: true, autoClosed: true },
+        autoCloseReason: args.autoCloseReason ?? null,
+      },
     });
-    let xpAwarded = 0;
-    if (row?.qualityScore != null) {
-      await awardXp({
-        userId: session.userId,
-        type: "SESSION_COMPLETED",
-        requestedXp: sessionXp(row.qualityScore),
-        idempotencyKey: `session-completed:${session.id}`,
-        sourceType: "study_session",
-        sourceId: session.id,
-        payload: { qualityScore: row.qualityScore, autoClosed: row.autoClosed },
-      });
-      const event = await prisma.activityEvent.findUnique({
-        where: { idempotencyKey: `session-completed:${session.id}` },
-        select: { xpDelta: true },
-      });
-      xpAwarded = event?.xpDelta ?? 0;
+    if (closed.count === 0) return null;
+
+    const grouped = await tx.sessionActivity.groupBy({
+      by: ["type"],
+      where: { sessionId: session.id },
+      _count: { _all: true },
+    });
+    const activityCount = new Map(
+      grouped.map((entry) => [entry.type, entry._count._all]),
+    );
+    const quality =
+      status === "SCORED"
+        ? computeSessionQuality({
+            creditedDurationSec: credited,
+            targetDurationSec: target,
+            explicitStop,
+            goalCompleted: args.goalCompleted ?? false,
+            autoClosed,
+            activity: {
+              summariesGenerated: activityCount.get("SUMMARY_GENERATED") ?? 0,
+              tutorQuestions: activityCount.get("TUTOR_QUESTION") ?? 0,
+              quizzesCompleted: activityCount.get("QUIZ_COMPLETED") ?? 0,
+            },
+          })
+        : null;
+
+    await tx.studySession.update({
+      where: { id: session.id },
+      data: {
+        scoreStatus: status,
+        qualityScore: quality?.total ?? null,
+        qualityVersion: quality ? SESSION_QUALITY_VERSION : null,
+        qualityBreakdown: quality
+          ? (quality as unknown as Prisma.InputJsonValue)
+          : Prisma.DbNull,
+      },
+    });
+
+    let planDate: string | null = null;
+    if (session.scheduledSessionId) {
+      const [plan, totals] = await Promise.all([
+        tx.scheduledSession.findFirst({
+          where: { id: session.scheduledSessionId, userId: session.userId },
+          select: { plannedLocalDate: true, targetDurationSec: true },
+        }),
+        tx.studySession.aggregate({
+          where: {
+            scheduledSessionId: session.scheduledSessionId,
+            endedAt: { not: null },
+          },
+          _sum: { actualDurationSec: true },
+        }),
+      ]);
+      if (plan) {
+        planDate = plan.plannedLocalDate;
+        if (
+          (totals._sum.actualDurationSec ?? 0) >=
+          ADHERENCE_THRESHOLD * plan.targetDurationSec
+        ) {
+          await tx.scheduledSession.updateMany({
+            where: {
+              id: session.scheduledSessionId,
+              userId: session.userId,
+              status: { in: ["PLANNED", "MISSED"] },
+            },
+            data: { status: "COMPLETED" },
+          });
+        }
+      }
     }
+
+    return { quality, planDate };
+  });
+
+  if (!transactionResult) {
+    const canonical = await readCanonicalResult(session);
     return {
-      qualityScore: row?.qualityScore ?? null,
-      scored: row?.qualityScore != null,
+      ...canonical,
       celebration: NO_CELEBRATION,
-      xpAwarded,
     };
   }
 
-  // A study session that met the per-session adherence bar completes its plan.
-  if (
-    session.scheduledSessionId &&
-    target > 0 &&
-    credited >= ADHERENCE_THRESHOLD * target
-  ) {
-    await prisma.scheduledSession.updateMany({
-      where: {
-        id: session.scheduledSessionId,
-        userId: session.userId,
-        status: { in: ["PLANNED", "MISSED"] },
-      },
-      data: { status: "COMPLETED" },
-    });
-  }
-
   let xpAwarded = 0;
-  if (quality) {
-    const awarded = await awardXp({
+  if (transactionResult.quality) {
+    const award = await awardXp({
       userId: session.userId,
       type: "SESSION_COMPLETED",
-      requestedXp: sessionXp(quality.total),
+      requestedXp: sessionXp(transactionResult.quality.total),
       idempotencyKey: `session-completed:${session.id}`,
       sourceType: "study_session",
       sourceId: session.id,
-      payload: { qualityScore: quality.total, autoClosed },
+      payload: {
+        qualityScore: transactionResult.quality.total,
+        qualityVersion: SESSION_QUALITY_VERSION,
+        autoClosed,
+      },
     });
-    xpAwarded = awarded.xpAwarded;
+    xpAwarded = award.xpAwarded;
   }
 
-  // Best-effort gamification follow-ups (adherent/perfect-day XP, streak,
-  // trophies, rank-up). A failure here must never undo a finalized session.
   let celebration = NO_CELEBRATION;
   try {
-    if (session.scheduledSessionId) {
-      const sched = await prisma.scheduledSession.findUnique({
-        where: { id: session.scheduledSessionId },
-        select: { plannedLocalDate: true },
-      });
-      if (sched) await processAdherenceForDay(session.userId, sched.plannedLocalDate);
+    if (transactionResult.planDate) {
+      await processAdherenceForDay(session.userId, transactionResult.planDate);
     }
     celebration = await runAwardChecks(session.userId, rankBefore);
   } catch {
-    // ignore
+    // Scoring is already durable; rewards are intentionally best-effort.
   }
 
   return {
-    qualityScore: quality?.total ?? null,
-    scored: quality !== null,
+    qualityScore: transactionResult.quality?.total ?? null,
+    scoreStatus: status,
+    qualityBreakdown: transactionResult.quality,
     celebration,
     xpAwarded,
   };
 }
 
-/** Auto-close an open session if it is idle or past the hard cap. */
 async function reconcile(open: StudySession): Promise<boolean> {
   const decision = autoCloseDecision(
     {
@@ -231,7 +289,6 @@ async function reconcile(open: StudySession): Promise<boolean> {
   return true;
 }
 
-/** The user's current active session (reconciling/auto-closing stale ones). */
 export async function getActiveSession(
   userId: string,
 ): Promise<ActiveSession | null> {
@@ -244,52 +301,110 @@ export async function getActiveSession(
   return toActive(open);
 }
 
-/**
- * Start a session (optionally bound to a scheduled session). Reconciles first;
- * if a non-stale session is already open, returns it (resume) rather than
- * creating a duplicate. The partial unique index is the last-resort guard
- * against a concurrent double-start.
- */
+async function assertSessionTaxonomy(
+  userId: string,
+  subjectId: string | null,
+  topicId: string | null,
+) {
+  if (!subjectId && topicId) throw new Error("Choose a subject first");
+  if (!subjectId) return;
+  const subject = await prisma.subject.findFirst({
+    where: { id: subjectId, userId, archivedAt: null },
+    select: {
+      id: true,
+      topics: {
+        where: { id: topicId ?? undefined, archivedAt: null },
+        select: { id: true },
+      },
+    },
+  });
+  if (!subject || (topicId && subject.topics.length === 0)) {
+    throw new Error("Subject or topic not found");
+  }
+}
+
 export async function startSession(
   userId: string,
-  scheduledSessionId?: string,
+  input: SessionStartInput = {},
 ): Promise<ActiveSession> {
   const existingOpen = await prisma.studySession.findFirst({
     where: { userId, endedAt: null },
     include: { scheduledSession: { select: { title: true, goal: true } } },
   });
-  if (existingOpen) {
-    if (!(await reconcile(existingOpen))) return toActive(existingOpen);
+  if (existingOpen && !(await reconcile(existingOpen))) {
+    return toActive(existingOpen);
   }
 
-  let targetDurationSec: number | null = null;
-  if (scheduledSessionId) {
-    const sched = await prisma.scheduledSession.findFirst({
-      where: { id: scheduledSessionId, userId },
-      select: { targetDurationSec: true },
-    });
-    if (!sched) throw new Error("Scheduled session not found");
-    targetDurationSec = sched.targetDurationSec;
+  let data: {
+    scheduledSessionId: string | null;
+    targetDurationSec: number;
+    title: string;
+    goal: string | null;
+    subjectId: string | null;
+    topicId: string | null;
+  };
 
-    // One study session per scheduled session (scheduledSessionId is @unique).
-    const linked = await prisma.studySession.findUnique({
-      where: { scheduledSessionId },
-      include: { scheduledSession: { select: { title: true, goal: true } } },
+  if (input.scheduledSessionId) {
+    const scheduled = await prisma.scheduledSession.findFirst({
+      where: {
+        id: input.scheduledSessionId,
+        userId,
+        status: { notIn: ["COMPLETED", "CANCELLED"] },
+      },
+      select: {
+        id: true,
+        title: true,
+        goal: true,
+        subjectId: true,
+        topicId: true,
+        targetDurationSec: true,
+        studySessions: {
+          where: { endedAt: { not: null } },
+          select: { actualDurationSec: true },
+        },
+      },
     });
-    if (linked && !linked.endedAt) return toActive(linked);
-    if (linked && linked.endedAt) {
-      // Already completed once: run a fresh standalone session instead.
-      scheduledSessionId = undefined;
-      targetDurationSec = null;
+    if (!scheduled)
+      throw new Error("This planned session is no longer available");
+    const completed = scheduled.studySessions.reduce(
+      (sum, attempt) => sum + (attempt.actualDurationSec ?? 0),
+      0,
+    );
+    data = {
+      scheduledSessionId: scheduled.id,
+      targetDurationSec: Math.max(60, scheduled.targetDurationSec - completed),
+      title: scheduled.title,
+      goal: scheduled.goal,
+      subjectId: scheduled.subjectId,
+      topicId: scheduled.topicId,
+    };
+  } else {
+    const target = Math.floor(input.targetDurationSec ?? 25 * 60);
+    if (target < 10 * 60 || target > 4 * 60 * 60) {
+      throw new Error("Target must be between 10 minutes and 4 hours");
     }
+    const title = input.title?.trim() || "Focused study";
+    if (title.length > 120) throw new Error("Title is too long");
+    await assertSessionTaxonomy(
+      userId,
+      input.subjectId ?? null,
+      input.topicId ?? null,
+    );
+    data = {
+      scheduledSessionId: null,
+      targetDurationSec: target,
+      title,
+      goal: input.goal?.trim() || null,
+      subjectId: input.subjectId ?? null,
+      topicId: input.topicId ?? null,
+    };
   }
 
   try {
     const created = await prisma.studySession.create({
       data: {
         userId,
-        scheduledSessionId: scheduledSessionId ?? null,
-        targetDurationSec,
+        ...data,
         lastHeartbeatAt: new Date(),
       },
       include: { scheduledSession: { select: { title: true, goal: true } } },
@@ -305,19 +420,18 @@ export async function startSession(
       },
     });
     return toActive(created);
-  } catch (e) {
-    if (isUniqueViolation(e)) {
+  } catch (error) {
+    if (isUniqueViolation(error)) {
       const open = await prisma.studySession.findFirst({
         where: { userId, endedAt: null },
         include: { scheduledSession: { select: { title: true, goal: true } } },
       });
       if (open) return toActive(open);
     }
-    throw e;
+    throw error;
   }
 }
 
-/** Record a heartbeat; auto-closes (and reports closed) if already stale. */
 export async function recordHeartbeat(
   userId: string,
   sessionId: string,
@@ -325,9 +439,7 @@ export async function recordHeartbeat(
   const open = await prisma.studySession.findFirst({
     where: { id: sessionId, userId, endedAt: null },
   });
-  if (!open) return { open: false };
-  if (await reconcile(open)) return { open: false };
-
+  if (!open || (await reconcile(open))) return { open: false };
   await prisma.studySession.updateMany({
     where: { id: sessionId, userId, endedAt: null },
     data: { lastHeartbeatAt: new Date() },
@@ -335,7 +447,6 @@ export async function recordHeartbeat(
   return { open: true };
 }
 
-/** Explicitly stop a session, crediting up to now (capped). */
 export async function stopSession(
   userId: string,
   sessionId: string,
@@ -345,10 +456,11 @@ export async function stopSession(
     where: { id: sessionId, userId, endedAt: null },
   });
   if (!open) return { ok: false, error: "No active session to stop" };
-
-  const capEndMs = open.startedAt.getTime() + HARD_CAP_SEC * 1000;
-  const endMs = Math.min(Date.now(), capEndMs);
-  const { qualityScore, scored, celebration, xpAwarded } = await finalize({
+  const endMs = Math.min(
+    Date.now(),
+    open.startedAt.getTime() + HARD_CAP_SEC * 1000,
+  );
+  const result = await finalize({
     session: open,
     endMs,
     explicitStop: true,
@@ -356,31 +468,42 @@ export async function stopSession(
     goalCompleted: opts.goalCompleted,
     reflection: opts.reflection,
   });
-
   return {
     ok: true,
+    sessionId: open.id,
     durationSec: creditedDurationSec(open.startedAt.getTime(), endMs),
-    qualityScore,
-    scored,
-    celebration,
-    xpAwarded,
+    qualityScore: result.qualityScore,
+    scoreStatus: result.scoreStatus,
+    qualityBreakdown: result.qualityBreakdown,
+    qualityVersion:
+      result.scoreStatus === "SCORED" ? SESSION_QUALITY_VERSION : null,
+    celebration: result.celebration,
+    xpAwarded: result.xpAwarded,
   };
 }
 
 /**
- * Best-effort increment of a server-confirmed engagement counter on the user's
- * open session (if any). Never throws into the calling AI action.
+ * Record metadata-only, server-verified learning activity against the open
+ * session. The unique key makes retries/double-clicks harmless.
  */
-export async function bumpEngagement(
+export async function recordSessionActivity(
   userId: string,
-  field: EngagementField,
+  type: SessionActivityType,
+  sourceId: string,
 ): Promise<void> {
+  if (!sourceId) return;
+  const session = await prisma.studySession.findFirst({
+    where: { userId, endedAt: null },
+    select: { id: true },
+  });
+  if (!session) return;
   try {
-    await prisma.studySession.updateMany({
-      where: { userId, endedAt: null },
-      data: { [field]: { increment: 1 } },
+    await prisma.sessionActivity.create({
+      data: { userId, sessionId: session.id, type, sourceId },
     });
-  } catch {
-    // Engagement counters are non-critical; swallow failures.
+  } catch (error) {
+    if (!isUniqueViolation(error)) {
+      // Activity credit must never break the primary learning action.
+    }
   }
 }

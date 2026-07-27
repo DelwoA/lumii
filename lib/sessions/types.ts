@@ -8,6 +8,22 @@
 // =============================================================================
 /** Client-safe session types (no server-only imports). */
 import type { Celebration } from "@/lib/gamification/celebration";
+import type { SessionQualityBreakdown } from "@/lib/gamification/session-quality";
+
+export interface SessionStartInput {
+  scheduledSessionId?: string;
+  title?: string;
+  goal?: string | null;
+  subjectId?: string | null;
+  topicId?: string | null;
+  targetDurationSec?: number;
+}
+
+export interface SessionSetupOption {
+  id: string;
+  name: string;
+  topics: { id: string; name: string }[];
+}
 
 export interface ActiveSession {
   id: string;
@@ -26,9 +42,12 @@ export type StartResult =
 export type StopResult =
   | {
       ok: true;
+      sessionId: string;
       durationSec: number;
       qualityScore: number | null;
-      scored: boolean;
+      scoreStatus: "PENDING" | "SCORED" | "TOO_SHORT" | "NO_TARGET";
+      qualityBreakdown: SessionQualityBreakdown | null;
+      qualityVersion: string | null;
       celebration?: Celebration;
       xpAwarded?: number;
     }

@@ -62,27 +62,36 @@ export function ActivityCalendar({
   }
 
   return (
-    <div className="flex gap-1 overflow-x-auto pb-1">
-      {weeks.map((week, wi) => (
-        <div key={wi} className="flex flex-col gap-1">
-          {Array.from({ length: 7 }).map((_, di) => {
-            const cell = week[di] ?? null;
-            if (!cell) {
-              return <div key={di} className="size-3 rounded-[2px]" />;
-            }
-            return (
-              <div
-                key={di}
-                title={`${cell.minutes} min · ${label(cell.date)}`}
-                className={cn(
-                  "size-3 rounded-[2px]",
-                  LEVEL_CLASS[level(cell.minutes)],
-                )}
-              />
-            );
-          })}
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="flex gap-1 overflow-x-auto pb-1" aria-hidden="true">
+        {weeks.map((week, wi) => (
+          <div key={wi} className="flex flex-col gap-1">
+            {Array.from({ length: 7 }).map((_, di) => {
+              const cell = week[di] ?? null;
+              if (!cell) {
+                return <div key={di} className="size-3 rounded-[2px]" />;
+              }
+              return (
+                <div
+                  key={di}
+                  title={`${cell.minutes} min · ${label(cell.date)}`}
+                  className={cn(
+                    "size-3 rounded-[2px]",
+                    LEVEL_CLASS[level(cell.minutes)],
+                  )}
+                />
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <ol className="sr-only">
+        {data.map((day) => (
+          <li key={day.date}>
+            {label(day.date)}: {day.minutes} study minutes
+          </li>
+        ))}
+      </ol>
+    </>
   );
 }

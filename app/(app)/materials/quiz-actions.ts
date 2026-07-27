@@ -27,7 +27,7 @@ import {
 import { quizXp } from "@/lib/gamification/xp";
 import { awardXp } from "@/lib/gamification/award";
 import { getCurrentRank, runAwardChecks } from "@/lib/gamification/service";
-import { bumpEngagement } from "@/lib/sessions/service";
+import { recordSessionActivity } from "@/lib/sessions/service";
 import type {
   QuizQuestionPublic,
   GradedQuestion,
@@ -61,7 +61,10 @@ export async function startQuiz(materialId: string): Promise<StartQuizResult> {
     }));
     return { ok: true, token, questions };
   } catch {
-    return { ok: false, error: "Could not generate the quiz. Please try again." };
+    return {
+      ok: false,
+      error: "Could not generate the quiz. Please try again.",
+    };
   }
 }
 
@@ -79,13 +82,19 @@ export async function submitQuiz(input: {
   try {
     key = await decryptQuizToken(input.token);
   } catch {
-    return { ok: false, error: "This quiz has expired. Please generate a new one." };
+    return {
+      ok: false,
+      error: "This quiz has expired. Please generate a new one.",
+    };
   }
   if (key.userId !== user.id || key.materialId !== input.materialId) {
     return { ok: false, error: "This quiz does not match your session." };
   }
 
-  const { correctCount, questionCount } = scoreQuiz(key.correctAnswers, input.answers);
+  const { correctCount, questionCount } = scoreQuiz(
+    key.correctAnswers,
+    input.answers,
+  );
 
   const meta = await prisma.material.findFirst({
     where: { id: input.materialId, userId: user.id },
@@ -125,8 +134,7 @@ export async function submitQuiz(input: {
     xpAwarded = 0;
   }
 
-  // Best-effort engagement bump for any in-progress study session.
-  await bumpEngagement(user.id, "quizAttempts");
+  await recordSessionActivity(user.id, "QUIZ_COMPLETED", key.quizInstanceId);
   const celebration = await runAwardChecks(user.id, rankBefore);
 
   const graded: GradedQuestion[] = input.questions.map((q, i) => ({
@@ -138,5 +146,12 @@ export async function submitQuiz(input: {
     explanation: key.explanations[i] ?? null,
   }));
 
-  return { ok: true, correctCount, questionCount, graded, xpAwarded, celebration };
+  return {
+    ok: true,
+    correctCount,
+    questionCount,
+    graded,
+    xpAwarded,
+    celebration,
+  };
 }

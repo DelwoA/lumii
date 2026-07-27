@@ -1,7 +1,7 @@
 // =============================================================================
-// FILE: middleware.ts
+// FILE: proxy.ts
 // WHAT THIS FILE DOES:
-//   "Middleware" runs on EVERY request before the page does. This one is the
+//   Next.js Proxy runs on matching requests before the page does. This one is the
 //   front-door guard: if the address is one of the protected app pages listed
 //   below, it requires the visitor to be signed in (sending them to sign-in if
 //   not). Everything else (the landing page, public showcase /u/<handle>, the
@@ -26,7 +26,7 @@ const isProtectedRoute = createRouteMatcher([
   "/settings(.*)",
 ]);
 
-export default clerkMiddleware(async (auth, req) => {
+export const proxy = clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) {
     await auth.protect();
   }

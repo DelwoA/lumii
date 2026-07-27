@@ -1,32 +1,50 @@
-// =============================================================================
-// FILE: app/(app)/progress/page.tsx   ->   web address: /progress
-// WHAT THIS FILE DOES:
-//   The Progress page. It loads the analytics (study time, sessions, quizzes,
-//   streak, chart data) and the private mood log, then lays out the summary
-//   cards, the charts, the study-activity calendar, and the mood history. It
-//   also tidies up any expired old mood check-ins when the page is opened.
-// =============================================================================
 import { BookOpen, Clock, Flame, Brain } from "lucide-react";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getProgressData } from "@/lib/progress/service";
+import type { ProgressRange } from "@/lib/progress/types";
 import { formatDurationShort } from "@/lib/format";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { ProgressCharts } from "@/components/progress/progress-charts";
 import { ActivityCalendar } from "@/components/progress/activity-calendar";
 import { MoodHistory } from "@/components/progress/mood-history";
-import {
-  getMoodSummary,
-  purgeExpiredMoodCheckins,
-} from "@/lib/mood/service";
+import { QualityHub } from "@/components/progress/quality-hub";
+import { SessionHistory } from "@/components/progress/session-history";
+import { ProgressExportButtons } from "@/components/progress/progress-export-buttons";
+import { getMoodSummary, purgeExpiredMoodCheckins } from "@/lib/mood/service";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProgressPage() {
-  const user = await requireDbUser();
-  const data = await getProgressData(user.id, user.timezone || "UTC");
+function first(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
 
-  // Purge expired (legacy) check-ins on access before reading the log.
+export default async function ProgressPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const user = await requireDbUser();
+  const query = await searchParams;
+  const requestedRange = first(query.range);
+  const range: ProgressRange =
+    requestedRange === "30d" ||
+    requestedRange === "all" ||
+    requestedRange === "custom"
+      ? requestedRange
+      : "90d";
+  const page = Math.max(1, Number.parseInt(first(query.page) || "1", 10) || 1);
+  const filters = {
+    range,
+    from: first(query.from),
+    to: first(query.to),
+    page,
+    sessionId: first(query.session),
+  };
+
+  const data = await getProgressData(user.id, user.timezone || "UTC", filters);
+
   await purgeExpiredMoodCheckins(user.id);
   const [moodSummary, moods] = await Promise.all([
     getMoodSummary(user.id),
@@ -68,32 +86,106 @@ export default async function ProgressPage() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Progress</h1>
-        <p className="text-muted-foreground text-sm">
-          How your studying is trending over time.
-        </p>
+    <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <div>
+          <p className="text-primary text-xs font-semibold tracking-[0.16em] uppercase">
+            Your study garden
+          </p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+            Progress
+          </h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            A durable record of the habits you are building.
+          </p>
+        </div>
+        <ProgressExportButtons filters={data.filters} />
       </div>
 
+      <Card className="p-4">
+        <form
+          method="get"
+          className="flex flex-col gap-3 sm:flex-row sm:items-end"
+        >
+          <div className="space-y-1.5">
+            <label htmlFor="progress-range" className="text-xs font-medium">
+              Date range
+            </label>
+            <select
+              id="progress-range"
+              name="range"
+              defaultValue={range}
+              className="border-input bg-card focus-visible:border-ring focus-visible:ring-ring/30 h-9 rounded-lg border px-3 text-base outline-none focus-visible:ring-3 md:text-sm"
+            >
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+              <option value="all">All time</option>
+              <option value="custom">Custom dates</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="progress-from" className="text-xs font-medium">
+              From
+            </label>
+            <input
+              id="progress-from"
+              name="from"
+              type="date"
+              defaultValue={filters.from}
+              className="border-input bg-card focus-visible:border-ring focus-visible:ring-ring/30 h-9 rounded-lg border px-3 text-base outline-none focus-visible:ring-3 md:text-sm"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="progress-to" className="text-xs font-medium">
+              To
+            </label>
+            <input
+              id="progress-to"
+              name="to"
+              type="date"
+              defaultValue={filters.to}
+              className="border-input bg-card focus-visible:border-ring focus-visible:ring-ring/30 h-9 rounded-lg border px-3 text-base outline-none focus-visible:ring-3 md:text-sm"
+            />
+          </div>
+          <Button type="submit" size="sm">
+            Apply
+          </Button>
+        </form>
+      </Card>
+
+      <QualityHub quality={data.quality} />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
-          <Card key={s.label} className="p-5">
+        {stats.map((stat) => (
+          <Card key={stat.label} className="p-5">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-sm">{s.label}</span>
-              <s.icon className="text-primary size-4" />
+              <span className="text-muted-foreground text-sm">
+                {stat.label}
+              </span>
+              <stat.icon className="text-primary size-4" aria-hidden="true" />
             </div>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">{s.value}</p>
+            <p className="mt-2 text-2xl font-semibold tabular-nums">
+              {stat.value}
+            </p>
           </Card>
         ))}
       </div>
+
+      <SessionHistory
+        entries={data.history.entries}
+        selected={data.selectedSession}
+        filters={data.filters}
+        page={data.history.page}
+        total={data.history.total}
+        totalPages={data.history.totalPages}
+      />
 
       <ProgressCharts data={data} />
 
       <Card className="p-5">
         <h2 className="mb-1 font-medium">Study activity</h2>
         <p className="text-muted-foreground mb-4 text-sm">
-          The last 12 weeks. Darker means more minutes studied that day.
+          The last 12 weeks. Deeper green means more minutes studied that day.
         </p>
         <ActivityCalendar data={data.activityCalendar} />
       </Card>

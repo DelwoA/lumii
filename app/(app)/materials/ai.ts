@@ -24,7 +24,7 @@ import {
 import { awardXp } from "@/lib/gamification/award";
 import { XP_RULES } from "@/lib/gamification/xp";
 import { getCurrentRank, runAwardChecks } from "@/lib/gamification/service";
-import { bumpEngagement } from "@/lib/sessions/service";
+import { recordSessionActivity } from "@/lib/sessions/service";
 import type { ActionState } from "@/lib/forms";
 import type { Celebration } from "@/lib/gamification/celebration";
 
@@ -33,7 +33,9 @@ export type SummaryResult = ActionState & {
   xpAwarded?: number;
 };
 
-export async function generateSummary(materialId: string): Promise<SummaryResult> {
+export async function generateSummary(
+  materialId: string,
+): Promise<SummaryResult> {
   const user = await requireDbUser();
   const loaded = await loadMaterialForAI(user.id, materialId);
   if (!loaded) return { ok: false, error: "Material is not ready yet" };
@@ -60,11 +62,14 @@ export async function generateSummary(materialId: string): Promise<SummaryResult
       sourceType: "summary",
       sourceId: summary.id,
     });
-    await bumpEngagement(user.id, "summariesViewed");
+    await recordSessionActivity(user.id, "SUMMARY_GENERATED", summary.id);
     const celebration = await runAwardChecks(user.id, rankBefore);
     revalidatePath(`/materials/${materialId}`);
     return { ok: true, celebration, xpAwarded };
   } catch {
-    return { ok: false, error: "Could not generate the summary. Please try again." };
+    return {
+      ok: false,
+      error: "Could not generate the summary. Please try again.",
+    };
   }
 }

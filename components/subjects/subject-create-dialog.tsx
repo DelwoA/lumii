@@ -8,7 +8,7 @@
 // =============================================================================
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,19 +30,19 @@ import { SUBJECT_COLORS } from "@/lib/validations/subject";
 export function SubjectCreateDialog() {
   const [open, setOpen] = useState(false);
   const [color, setColor] = useState<string>(SUBJECT_COLORS[0]);
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(
-    createSubject,
+  const [, formAction, pending] = useActionState<ActionState, FormData>(
+    async (previous, formData) => {
+      const result = await createSubject(previous, formData);
+      if (result.ok) {
+        setOpen(false);
+        toast.success("Subject created");
+      } else if (result.error) {
+        toast.error(result.error);
+      }
+      return result;
+    },
     ACTION_INITIAL,
   );
-
-  useEffect(() => {
-    if (state.ok) {
-      setOpen(false);
-      toast.success("Subject created");
-    } else if (state.error) {
-      toast.error(state.error);
-    }
-  }, [state]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

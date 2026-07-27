@@ -6,20 +6,18 @@
 //   code here runs on every single screen (landing page, sign-in, dashboard...).
 //
 //   It sets up three app-wide things:
-//     1. The <html>/<body> shell, the page fonts, and dark mode.
+//     1. The <html>/<body> shell and page fonts.
 //     2. ClerkProvider  -> makes sign-in/accounts available everywhere.
-//     3. ThemeProvider + Toaster -> dark theme + the little pop-up messages.
+//     3. Toaster -> the little app-wide confirmation messages.
 //
 // HOW TO FIND THINGS:
 //   - Search "metadata" to change the browser tab title or description.
 //   - Search "colorPrimary" to change the accent colour of the sign-in screens.
-//   - Search "forcedTheme" to change/relax the dark-only setting.
 // =============================================================================
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
@@ -46,37 +44,30 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // LUMII is dark-only: the `dark` class is hardcoded so static pages paint
-  // dark with no flash, and next-themes is locked to dark via forcedTheme.
   return (
     <html
       lang="en"
-      suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <ClerkProvider
           appearance={{
-            // Force Clerk's auth UI dark to match the app (LUMII is dark-only).
-            // Clerk derives its palette from these base variables.
             variables: {
-              colorPrimary: "#caf136",
-              colorPrimaryForeground: "#0a0a0a",
-              colorBackground: "#0a0a0a",
-              colorForeground: "#fafafa",
-              colorMutedForeground: "#a1a1a1",
-              colorInput: "#141414",
-              colorInputForeground: "#fafafa",
-              colorBorder: "#262626",
-              colorNeutral: "#ffffff",
+              colorPrimary: "#2F6048",
+              colorPrimaryForeground: "#FBFAF6",
+              colorBackground: "#FBFAF6",
+              colorForeground: "#223128",
+              colorMutedForeground: "#607067",
+              colorInput: "#FBFAF6",
+              colorInputForeground: "#223128",
+              colorBorder: "#CDD8CF",
+              colorNeutral: "#223128",
             },
-            captcha: { theme: "dark" },
+            captcha: { theme: "light" },
           }}
         >
-          <ThemeProvider attribute="class" forcedTheme="dark" disableTransitionOnChange>
-            {children}
-            <Toaster theme="dark" richColors position="bottom-right" />
-          </ThemeProvider>
+          {children}
+          <Toaster theme="light" richColors position="bottom-right" />
         </ClerkProvider>
       </body>
     </html>

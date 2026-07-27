@@ -1,11 +1,14 @@
-// =============================================================================
-// FILE: lib/progress/types.ts
-// WHAT THIS FILE DOES:
-//   The shared "shapes" for the Progress page data (totals, chart series, the
-//   activity calendar). Kept separate from the server query so the chart
-//   components in the browser can use the same shapes.
-// =============================================================================
-/** Client-safe shapes for the Progress analytics page. */
+import type { SessionQualityBreakdown } from "@/lib/gamification/session-quality";
+
+export type ProgressRange = "30d" | "90d" | "all" | "custom";
+
+export interface ProgressFilters {
+  range: ProgressRange;
+  from?: string;
+  to?: string;
+  page: number;
+  sessionId?: string;
+}
 
 export interface ProgressTotals {
   studySeconds: number;
@@ -15,14 +18,51 @@ export interface ProgressTotals {
   longestStreak: number;
 }
 
+export interface SessionHistoryEntry {
+  id: string;
+  title: string;
+  goal: string | null;
+  subjectName: string | null;
+  topicName: string | null;
+  startedAtISO: string;
+  endedAtISO: string;
+  durationSec: number;
+  targetDurationSec: number | null;
+  scoreStatus: "PENDING" | "SCORED" | "TOO_SHORT" | "NO_TARGET";
+  qualityScore: number | null;
+  qualityVersion: string | null;
+  qualityBreakdown: SessionQualityBreakdown | null;
+  goalCompleted: boolean | null;
+  reflection: string | null;
+  autoClosed: boolean;
+}
+
+export interface QualitySummary {
+  average: number | null;
+  scoredSessions: number;
+  unscoredSessions: number;
+  trend: number | null;
+  recentScores: {
+    id: string;
+    score: number;
+    startedAtISO: string;
+  }[];
+}
+
 export interface ProgressData {
   totals: ProgressTotals;
-  /** Study minutes per day, last 14 days. */
   dailyStudy: { date: string; label: string; minutes: number }[];
-  /** Cumulative XP per day, last 30 days. */
   xpCumulative: { date: string; label: string; xp: number }[];
-  /** Adherence percentage per week, last 6 weeks. */
   weeklyAdherence: { week: string; pct: number }[];
-  /** Study minutes per day, last 84 days (12-week activity grid). */
   activityCalendar: { date: string; minutes: number }[];
+  quality: QualitySummary;
+  history: {
+    entries: SessionHistoryEntry[];
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+  selectedSession: SessionHistoryEntry | null;
+  filters: ProgressFilters;
 }

@@ -7,7 +7,7 @@
 // =============================================================================
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { toast } from "sonner";
 import { PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,19 +32,19 @@ export function NoteCreateDialog({
   subjects: { id: string; name: string }[];
 }) {
   const [open, setOpen] = useState(false);
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(
-    createNote,
+  const [, formAction, pending] = useActionState<ActionState, FormData>(
+    async (previous, formData) => {
+      const result = await createNote(previous, formData);
+      if (result.ok) {
+        setOpen(false);
+        toast.success("Note saved");
+      } else if (result.error) {
+        toast.error(result.error);
+      }
+      return result;
+    },
     ACTION_INITIAL,
   );
-
-  useEffect(() => {
-    if (state.ok) {
-      setOpen(false);
-      toast.success("Note saved");
-    } else if (state.error) {
-      toast.error(state.error);
-    }
-  }, [state]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -88,7 +88,13 @@ export function NoteCreateDialog({
             )}
             <div className="grid gap-2">
               <Label htmlFor="n-text">Notes</Label>
-              <Textarea id="n-text" name="text" required rows={8} maxLength={50000} />
+              <Textarea
+                id="n-text"
+                name="text"
+                required
+                rows={8}
+                maxLength={50000}
+              />
             </div>
           </div>
           <DialogFooter>

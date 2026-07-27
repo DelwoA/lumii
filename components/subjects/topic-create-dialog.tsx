@@ -7,7 +7,7 @@
 // =============================================================================
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,19 +29,19 @@ export function TopicCreateDialog({ subjectId }: { subjectId: string }) {
   const [open, setOpen] = useState(false);
   // Bind the subjectId so useActionState calls (prev, formData) -> action.
   const action = createTopic.bind(null, subjectId);
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(
-    action,
+  const [, formAction, pending] = useActionState<ActionState, FormData>(
+    async (previous, formData) => {
+      const result = await action(previous, formData);
+      if (result.ok) {
+        setOpen(false);
+        toast.success("Topic added");
+      } else if (result.error) {
+        toast.error(result.error);
+      }
+      return result;
+    },
     ACTION_INITIAL,
   );
-
-  useEffect(() => {
-    if (state.ok) {
-      setOpen(false);
-      toast.success("Topic added");
-    } else if (state.error) {
-      toast.error(state.error);
-    }
-  }, [state]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

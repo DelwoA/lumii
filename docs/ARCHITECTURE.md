@@ -66,6 +66,8 @@ no server-only imports.
   any request that observes an open session auto-closes it if it is idle (no
   heartbeat for 5 minutes) or past the 4-hour cap, crediting time only up to the
   last heartbeat or the cap. Explicit Stop credits up to now (capped).
+  Finalization closes, scores, stores its explanation, and updates cumulative
+  timetable-attempt progress in one database transaction.
 - **Gamification**: every XP event is an append-only `ActivityEvent` (the ledger)
   written with a deterministic idempotency key. `GamificationProfile` is a
   rebuildable projection whose `totalXp` equals the sum of ledger deltas. Awards
@@ -76,11 +78,17 @@ no server-only imports.
 - **AI provider isolation**: all model access goes through one module
   (`lib/ai/provider.ts`) with an ordered primary/fallback. Swapping providers is
   a one-file change.
-- **Deterministic Session Quality**: a published 0-100 formula (duration
-  adherence, explicit stop, declared goal, bounded engagement). It measures
-  product engagement and session discipline, not learning or attention.
+- **Deterministic Session Quality v2**: a published 0-100 formula: duration
+  adherence (50), declared goal completion (20), intentional stop (10), and
+  bounded verified activity (20). A metadata-only `SessionActivity` ledger
+  records summary generation, tutor questions, and completed quizzes
+  idempotently. Every score stores its version and breakdown. It measures study
+  habits and follow-through, not intelligence, attention, or subject mastery.
+- **Timetable attempts**: one planned session can have multiple `StudySession`
+  attempts. Their credited durations accumulate and complete the plan at the
+  existing 80% adherence threshold; unfinished plans retain attempt history.
 - **Adherence streak**: computed over planned days only; a day is adherent at
-  >= 80% of its planned minutes. A separate perfect-day badge requires 100%.
+  > = 80% of its planned minutes. A separate perfect-day badge requires 100%.
 - **Privacy**: mood text is sent only to a dedicated classifier and then
   discarded; only a label is stored, with a 30-day retention purged on access.
   The public profile exposes an explicit allowlist (name, bio, rank, optional XP,

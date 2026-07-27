@@ -13,7 +13,8 @@
 "use client";
 
 import { create } from "zustand";
-import type { ActiveSession } from "@/lib/sessions/types";
+import type { ActiveSession, SessionStartInput } from "@/lib/sessions/types";
+import type { SessionQualityBreakdown } from "@/lib/gamification/session-quality";
 import type { Celebration } from "@/lib/gamification/celebration";
 import {
   getActiveSessionAction,
@@ -24,9 +25,12 @@ import {
 
 interface StopOutcome {
   ok: boolean;
+  sessionId?: string;
   durationSec?: number;
   qualityScore?: number | null;
-  scored?: boolean;
+  scoreStatus?: "PENDING" | "SCORED" | "TOO_SHORT" | "NO_TARGET";
+  qualityBreakdown?: SessionQualityBreakdown | null;
+  qualityVersion?: string | null;
   celebration?: Celebration;
   xpAwarded?: number;
   error?: string;
@@ -40,9 +44,12 @@ interface SessionState {
   stopping: boolean;
   refresh: () => Promise<void>;
   start: (
-    scheduledSessionId?: string,
+    input?: SessionStartInput,
   ) => Promise<{ ok: boolean; error?: string }>;
-  stop: (opts: { goalCompleted?: boolean; reflection?: string }) => Promise<StopOutcome>;
+  stop: (opts: {
+    goalCompleted?: boolean;
+    reflection?: string;
+  }) => Promise<StopOutcome>;
   beat: () => Promise<void>;
 }
 
@@ -62,10 +69,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set({ active, hydrated: true });
   },
 
-  async start(scheduledSessionId) {
+  async start(input = {}) {
     if (get().starting) return { ok: false, error: "Already starting" };
     set({ starting: true });
-    const res = await startSessionAction(scheduledSessionId);
+    const res = await startSessionAction(input);
     set({ starting: false });
     if (res.ok) {
       set({ active: res.active });
@@ -79,13 +86,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (!active) return { ok: false, error: "No active session" };
     set({ stopping: true });
     const res = await stopSessionAction(active.id, opts);
-    set({ stopping: false, active: null });
+    set(res.ok ? { stopping: false, active: null } : { stopping: false });
     return res.ok
       ? {
           ok: true,
+          sessionId: res.sessionId,
           durationSec: res.durationSec,
           qualityScore: res.qualityScore,
-          scored: res.scored,
+          scoreStatus: res.scoreStatus,
+          qualityBreakdown: res.qualityBreakdown,
+          qualityVersion: res.qualityVersion,
           celebration: res.celebration,
           xpAwarded: res.xpAwarded,
         }
@@ -97,7 +107,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (!active) return;
     // Only count time while the tab is actually visible; a hidden tab going
     // quiet is what lets the server's idle auto-close kick in.
-    if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+    if (
+      typeof document !== "undefined" &&
+      document.visibilityState !== "visible"
+    ) {
       return;
     }
     const res = await heartbeatAction(active.id);

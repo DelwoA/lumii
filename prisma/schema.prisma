@@ -64,6 +64,19 @@ enum SessionStatus {
   CANCELLED
 }
 
+enum SessionScoreStatus {
+  PENDING
+  SCORED
+  TOO_SHORT
+  NO_TARGET
+}
+
+enum SessionActivityType {
+  SUMMARY_GENERATED
+  TUTOR_QUESTION
+  QUIZ_COMPLETED
+}
+
 enum MoodLabel {
   MOTIVATED
   NEUTRAL
@@ -102,19 +115,20 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  subjects         Subject[]
-  topics           Topic[]
-  materials        Material[]
-  materialChunks   MaterialChunk[]
-  summaries        Summary[]
-  quizCompletions  QuizCompletion[]
+  subjects          Subject[]
+  topics            Topic[]
+  materials         Material[]
+  materialChunks    MaterialChunk[]
+  summaries         Summary[]
+  quizCompletions   QuizCompletion[]
   scheduledSessions ScheduledSession[]
-  studySessions    StudySession[]
-  moodCheckins     MoodCheckin[]
-  gamification     GamificationProfile?
-  userTrophies     UserTrophy[]
-  activityEvents   ActivityEvent[]
-  publicProfile    PublicProfile?
+  studySessions     StudySession[]
+  moodCheckins      MoodCheckin[]
+  gamification      GamificationProfile?
+  userTrophies      UserTrophy[]
+  activityEvents    ActivityEvent[]
+  sessionActivities SessionActivity[]
+  publicProfile     PublicProfile?
 }
 
 model Subject {
@@ -130,6 +144,7 @@ model Subject {
   materials         Material[]
   quizCompletions   QuizCompletion[]
   scheduledSessions ScheduledSession[]
+  studySessions     StudySession[]
 
   @@index([userId])
 }
@@ -147,6 +162,7 @@ model Topic {
   materials         Material[]
   quizCompletions   QuizCompletion[]
   scheduledSessions ScheduledSession[]
+  studySessions     StudySession[]
 
   @@index([subjectId])
   @@index([userId])
@@ -191,15 +207,15 @@ model Material {
  * so chunks are written and similarity-searched via raw SQL (see lib/rag).
  */
 model MaterialChunk {
-  id         String                     @id @default(cuid())
+  id         String                      @id @default(cuid())
   userId     String
-  user       User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   materialId String
-  material   Material                   @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  material   Material                    @relation(fields: [materialId], references: [id], onDelete: Cascade)
   chunkIndex Int
-  content    String                     @db.Text
+  content    String                      @db.Text
   embedding  Unsupported("vector(1536)")
-  createdAt  DateTime                   @default(now())
+  createdAt  DateTime                    @default(now())
 
   @@unique([materialId, chunkIndex])
   @@index([materialId])
@@ -223,13 +239,13 @@ model Summary {
 
 model QuizCompletion {
   // NON-CONTENT metadata only. Never store questions/answers/responses.
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   userId            String
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   subjectId         String?
-  subject           Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  subject           Subject?  @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   topicId           String?
-  topic             Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  topic             Topic?    @relation(fields: [topicId], references: [id], onDelete: SetNull)
   materialId        String?
   material          Material? @relation(fields: [materialId], references: [id], onDelete: SetNull)
   questionCount     Int
@@ -237,65 +253,92 @@ model QuizCompletion {
   durationSec       Int
   modelId           String
   generationVersion String
-  idempotencyKey    String   @unique
-  completedAt       DateTime @default(now())
+  idempotencyKey    String    @unique
+  completedAt       DateTime  @default(now())
 
   @@index([userId, completedAt])
   @@index([topicId, completedAt])
 }
 
 model ScheduledSession {
-  id               String        @id @default(cuid())
-  userId           String
-  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subjectId        String?
-  subject          Subject?      @relation(fields: [subjectId], references: [id], onDelete: SetNull)
-  topicId          String?
-  topic            Topic?        @relation(fields: [topicId], references: [id], onDelete: SetNull)
-  title            String
-  plannedStart     DateTime
-  plannedEnd       DateTime
-  plannedLocalDate String // YYYY-MM-DD in planningTimezone
-  planningTimezone String // IANA
+  id                String        @id @default(cuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId         String?
+  subject           Subject?      @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  topicId           String?
+  topic             Topic?        @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  title             String
+  plannedStart      DateTime
+  plannedEnd        DateTime
+  plannedLocalDate  String // YYYY-MM-DD in planningTimezone
+  planningTimezone  String // IANA
   targetDurationSec Int
-  goal             String?
-  status           SessionStatus @default(PLANNED)
-  cancelledAt      DateTime?
-  createdAt        DateTime      @default(now())
+  goal              String?
+  status            SessionStatus @default(PLANNED)
+  cancelledAt       DateTime?
+  createdAt         DateTime      @default(now())
 
-  studySession StudySession?
+  studySessions StudySession[]
 
   @@index([userId, status, plannedStart])
   @@index([userId, plannedLocalDate])
 }
 
 model StudySession {
-  id                 String            @id @default(cuid())
-  userId             String
-  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  scheduledSessionId String?           @unique
-  scheduledSession   ScheduledSession? @relation(fields: [scheduledSessionId], references: [id], onDelete: SetNull)
-  startedAt          DateTime          @default(now())
-  endedAt            DateTime?
-  lastHeartbeatAt    DateTime?
-  targetDurationSec  Int?
-  actualDurationSec  Int?
-  goalCompleted      Boolean?
-  reflection         String?           @db.Text
-  qualityScore       Int?
-  qualityVersion     String?
-  autoClosed         Boolean           @default(false)
-  autoCloseReason    String?
+  id                   String             @id @default(cuid())
+  userId               String
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheduledSessionId   String?
+  scheduledSession     ScheduledSession?  @relation(fields: [scheduledSessionId], references: [id], onDelete: SetNull)
+  subjectId            String?
+  subject              Subject?           @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  topicId              String?
+  topic                Topic?             @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  title                String             @default("Study session")
+  goal                 String?
+  startedAt            DateTime           @default(now())
+  endedAt              DateTime?
+  lastHeartbeatAt      DateTime?
+  targetDurationSec    Int?
+  actualDurationSec    Int?
+  goalCompleted        Boolean?
+  reflection           String?            @db.Text
+  qualityScore         Int?
+  qualityVersion       String?
+  scoreStatus          SessionScoreStatus @default(PENDING)
+  qualityBreakdown     Json?
+  autoClosed           Boolean            @default(false)
+  autoCloseReason      String?
   // Server-confirmed in-session engagement counters (bounded when scored).
-  summariesViewed     Int @default(0)
-  tutorQuestions      Int @default(0)
-  quizAttempts        Int @default(0)
-  explanationsReviewed Int @default(0)
-  createdAt          DateTime @default(now())
+  summariesViewed      Int                @default(0)
+  tutorQuestions       Int                @default(0)
+  quizAttempts         Int                @default(0)
+  explanationsReviewed Int                @default(0)
+  createdAt            DateTime           @default(now())
 
   moodCheckins MoodCheckin[]
+  activities   SessionActivity[]
 
   @@index([userId, startedAt])
+  @@index([scheduledSessionId])
+  @@index([subjectId])
+  @@index([topicId])
+}
+
+model SessionActivity {
+  id        String              @id @default(cuid())
+  userId    String
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String
+  session   StudySession        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  type      SessionActivityType
+  sourceId  String
+  createdAt DateTime            @default(now())
+
+  @@unique([sessionId, type, sourceId])
+  @@index([userId, createdAt])
+  @@index([sessionId, type])
 }
 
 model MoodCheckin {
@@ -322,25 +365,25 @@ model MoodCheckin {
 }
 
 model GamificationProfile {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  totalXp        Int      @default(0) // invariant: == SUM(ActivityEvent.xpDelta)
-  rank           Rank     @default(BRONZE)
-  currentStreak  Int      @default(0)
-  longestStreak  Int      @default(0)
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalXp         Int      @default(0) // invariant: == SUM(ActivityEvent.xpDelta)
+  rank            Rank     @default(BRONZE)
+  currentStreak   Int      @default(0)
+  longestStreak   Int      @default(0)
   lastAdherentDay String? // YYYY-MM-DD
-  updatedAt      DateTime @updatedAt
+  updatedAt       DateTime @updatedAt
 }
 
 model Trophy {
-  id          String       @id @default(cuid())
-  code        String       @unique
-  name        String
-  description String
-  criteria    Json
-  icon        String
-  createdAt   DateTime     @default(now())
+  id           String       @id @default(cuid())
+  code         String       @unique
+  name         String
+  description  String
+  criteria     Json
+  icon         String
+  createdAt    DateTime     @default(now())
   userTrophies UserTrophy[]
 }
 

@@ -21,8 +21,41 @@
 import "server-only";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import type { User } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+
+export class DatabaseUnavailableError extends Error {
+  constructor() {
+    super("LUMII could not reach its database");
+    this.name = "DatabaseUnavailableError";
+  }
+}
+
+function isDatabaseUnavailable(error: unknown) {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P1001"
+  ) {
+    return true;
+  }
+
+  if (
+    error instanceof Prisma.PrismaClientInitializationError &&
+    error.errorCode === "P1001"
+  ) {
+    return true;
+  }
+
+  const message = error instanceof Error ? error.message : "";
+  return (
+    message.includes("Can't reach database server") ||
+    message.includes(
+      "Timed out fetching a new connection from the connection pool",
+    )
+  );
+}
 
 /**
  * Resolve the LUMII (Prisma) user for the current Clerk session, lazily
@@ -30,31 +63,40 @@ import { prisma } from "@/lib/prisma";
  * it in sync afterwards, but webhook delivery is eventually consistent, so we
  * never depend on it for a user to become usable.
  */
-export async function getOrCreateDbUser(): Promise<User | null> {
+export const getOrCreateDbUser = cache(async (): Promise<User | null> => {
   const { userId } = await auth();
   if (!userId) return null;
 
-  const existing = await prisma.user.findUnique({ where: { clerkId: userId } });
-  if (existing) return existing;
+  try {
+    const existing = await prisma.user.findUnique({
+      where: { clerkId: userId },
+    });
+    if (existing) return existing;
 
-  const cu = await currentUser();
-  const email =
-    cu?.primaryEmailAddress?.emailAddress ??
-    cu?.emailAddresses?.[0]?.emailAddress ??
-    undefined;
-  const displayName = cu
-    ? [cu.firstName, cu.lastName].filter(Boolean).join(" ") ||
-      cu.username ||
-      undefined
-    : undefined;
+    const cu = await currentUser();
+    const email =
+      cu?.primaryEmailAddress?.emailAddress ??
+      cu?.emailAddresses?.[0]?.emailAddress ??
+      undefined;
+    const displayName = cu
+      ? [cu.firstName, cu.lastName].filter(Boolean).join(" ") ||
+        cu.username ||
+        undefined
+      : undefined;
 
-  // upsert is idempotent under a race (two concurrent first requests).
-  return prisma.user.upsert({
-    where: { clerkId: userId },
-    update: {},
-    create: { clerkId: userId, email, displayName },
-  });
-}
+    // upsert is idempotent under a race (two concurrent first requests).
+    return prisma.user.upsert({
+      where: { clerkId: userId },
+      update: {},
+      create: { clerkId: userId, email, displayName },
+    });
+  } catch (error) {
+    if (isDatabaseUnavailable(error)) {
+      throw new DatabaseUnavailableError();
+    }
+    throw error;
+  }
+});
 
 /** Require an authenticated, provisioned user or redirect to sign-in. */
 export async function requireDbUser(): Promise<User> {

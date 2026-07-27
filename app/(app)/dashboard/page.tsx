@@ -41,7 +41,8 @@ function titleCase(s: string): string {
 export default async function DashboardPage() {
   const user = await requireDbUser();
   const todayLocal = localDateString(new Date(), user.timezone || "UTC");
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const [summary, todaySessions, weekAgg, recentMaterials] = await Promise.all([
     getGamificationSummary(user.id),
@@ -101,8 +102,13 @@ export default async function DashboardPage() {
             <span className="text-muted-foreground text-sm">Rank</span>
             <Crown className="text-primary size-4" />
           </div>
-          <p className="mt-2 text-xl font-semibold">{titleCase(summary.rank)}</p>
-          <Progress value={summary.progress.progress * 100} className="mt-2 h-1.5" />
+          <p className="mt-2 text-xl font-semibold">
+            {titleCase(summary.rank)}
+          </p>
+          <Progress
+            value={summary.progress.progress * 100}
+            className="mt-2 h-1.5"
+          />
           <p className="text-muted-foreground mt-1.5 text-xs tabular-nums">
             {summary.totalXp.toLocaleString()} XP
           </p>
@@ -114,7 +120,9 @@ export default async function DashboardPage() {
               <span className="text-muted-foreground text-sm">{s.label}</span>
               <s.icon className="text-primary size-4" />
             </div>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">{s.value}</p>
+            <p className="mt-2 text-2xl font-semibold tabular-nums">
+              {s.value}
+            </p>
           </Card>
         ))}
       </div>

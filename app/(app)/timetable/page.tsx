@@ -18,7 +18,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export default async function TimetablePage() {
   const user = await requireDbUser();
-  const now = Date.now();
+  const now = new Date().getTime();
   // A generous planning window keeps the page light while covering recent
   // history and near-future planning.
   const fromISO = new Date(now - 31 * DAY_MS).toISOString();

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   computeSessionQuality,
   type SessionQualityInput,
@@ -10,81 +10,89 @@ const base: SessionQualityInput = {
   explicitStop: false,
   goalCompleted: false,
   autoClosed: false,
-  summariesViewed: 0,
-  tutorQuestions: 0,
-  quizAttempts: 0,
-  explanationsReviewed: 0,
+  activity: {
+    summariesGenerated: 0,
+    tutorQuestions: 0,
+    quizzesCompleted: 0,
+  },
 };
 
-describe("computeSessionQuality", () => {
-  it("is 0 for an empty session", () => {
-    expect(computeSessionQuality(base).total).toBe(0);
+describe("Session Quality v2", () => {
+  it("scales duration to 50 points and caps over-target time", () => {
+    expect(
+      computeSessionQuality({ ...base, creditedDurationSec: 900 })
+        .durationAdherence,
+    ).toBe(25);
+    expect(
+      computeSessionQuality({ ...base, creditedDurationSec: 9999 })
+        .durationAdherence,
+    ).toBe(50);
   });
 
-  it("awards full duration adherence when target met", () => {
-    const r = computeSessionQuality({ ...base, creditedDurationSec: 1800 });
-    expect(r.durationAdherence).toBe(40);
-  });
-
-  it("caps duration adherence at 40 even when over target", () => {
-    const r = computeSessionQuality({ ...base, creditedDurationSec: 9999 });
-    expect(r.durationAdherence).toBe(40);
-  });
-
-  it("scales duration adherence proportionally", () => {
-    const r = computeSessionQuality({ ...base, creditedDurationSec: 900 });
-    expect(r.durationAdherence).toBe(20);
-  });
-
-  it("awards stop + goal points only when not auto-closed", () => {
-    const open = computeSessionQuality({
+  it("awards follow-through only for an intentional close", () => {
+    const intentional = computeSessionQuality({
       ...base,
       explicitStop: true,
       goalCompleted: true,
     });
-    expect(open.explicitStop).toBe(15);
-    expect(open.goalCompletion).toBe(15);
+    expect(intentional.intentionalStop).toBe(10);
+    expect(intentional.goalCompletion).toBe(20);
 
-    const auto = computeSessionQuality({
+    const automatic = computeSessionQuality({
       ...base,
       explicitStop: true,
       goalCompleted: true,
       autoClosed: true,
     });
-    expect(auto.explicitStop).toBe(0);
-    expect(auto.goalCompletion).toBe(0);
+    expect(automatic.intentionalStop).toBe(0);
+    expect(automatic.goalCompletion).toBe(0);
   });
 
-  it("bounds engagement to 30 with per-category caps", () => {
-    const r = computeSessionQuality({
+  it("credits only bounded, verified activity", () => {
+    const result = computeSessionQuality({
       ...base,
-      summariesViewed: 50,
-      tutorQuestions: 50,
-      quizAttempts: 50,
-      explanationsReviewed: 50,
+      activity: {
+        summariesGenerated: 20,
+        tutorQuestions: 20,
+        quizzesCompleted: 20,
+      },
     });
-    expect(r.engagement).toBe(30);
+    expect(result.learningActivity).toBe(20);
+    expect(result.activity).toEqual({
+      summariesGenerated: 20,
+      tutorQuestions: 20,
+      quizzesCompleted: 20,
+    });
   });
 
-  it("never exceeds 100 and never goes below 0", () => {
-    const max = computeSessionQuality({
-      creditedDurationSec: 5000,
-      targetDurationSec: 1800,
-      explicitStop: true,
-      goalCompleted: true,
-      autoClosed: false,
-      summariesViewed: 99,
-      tutorQuestions: 99,
-      quizAttempts: 99,
-      explanationsReviewed: 99,
-    });
-    expect(max.total).toBe(100);
+  it("reaches exactly 100 for complete follow-through", () => {
+    expect(
+      computeSessionQuality({
+        ...base,
+        creditedDurationSec: 1800,
+        explicitStop: true,
+        goalCompleted: true,
+        activity: {
+          summariesGenerated: 1,
+          tutorQuestions: 3,
+          quizzesCompleted: 1,
+        },
+      }).total,
+    ).toBe(100);
+  });
 
-    const neg = computeSessionQuality({
-      ...base,
-      creditedDurationSec: -100,
-      targetDurationSec: -5,
-    });
-    expect(neg.total).toBe(0);
+  it("normalizes invalid negative inputs", () => {
+    expect(
+      computeSessionQuality({
+        ...base,
+        creditedDurationSec: -10,
+        targetDurationSec: -1,
+        activity: {
+          summariesGenerated: -1,
+          tutorQuestions: Number.NaN,
+          quizzesCompleted: -4,
+        },
+      }).total,
+    ).toBe(0);
   });
 });

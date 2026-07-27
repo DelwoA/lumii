@@ -9,16 +9,16 @@
 // =============================================================================
 import { z } from "zod";
 
-/** Preset subject colours (the first is the Lumen lime accent). */
+/** Botanical, parchment-friendly subject colours with usable white contrast. */
 export const SUBJECT_COLORS = [
-  "#CAF136",
-  "#60A5FA",
-  "#F472B6",
-  "#FBBF24",
-  "#34D399",
-  "#A78BFA",
-  "#F87171",
-  "#94A3B8",
+  "#2F6048",
+  "#496F56",
+  "#6B7F52",
+  "#5F756F",
+  "#7B6754",
+  "#8B5E55",
+  "#5D6D82",
+  "#6C657D",
 ] as const;
 
 export const subjectInput = z.object({

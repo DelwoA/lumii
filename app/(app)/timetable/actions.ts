@@ -15,6 +15,7 @@ import {
   cancelScheduled,
   createScheduled,
   updateScheduled,
+  ScheduleOverlapError,
   type ScheduledInput,
 } from "@/lib/timetable/service";
 
@@ -26,9 +27,12 @@ const schema = z.object({
   startISO: z.string().min(1),
   endISO: z.string().min(1),
   timeZone: z.string().min(1),
+  allowOverlap: z.boolean().optional(),
 });
 
-export type TimetableActionResult = { ok: true } | { ok: false; error: string };
+export type TimetableActionResult =
+  | { ok: true }
+  | { ok: false; error: string; conflict?: boolean };
 
 function errorOf(e: unknown): string {
   return e instanceof Error ? e.message : "Something went wrong";
@@ -40,7 +44,10 @@ export async function createScheduledSession(
   const user = await requireDbUser();
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
   }
   try {
     await createScheduled(user.id, parsed.data);
@@ -48,7 +55,11 @@ export async function createScheduledSession(
     revalidatePath("/dashboard");
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: errorOf(e) };
+    return {
+      ok: false,
+      error: errorOf(e),
+      conflict: e instanceof ScheduleOverlapError,
+    };
   }
 }
 
@@ -59,7 +70,10 @@ export async function updateScheduledSession(
   const user = await requireDbUser();
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
   }
   try {
     await updateScheduled(user.id, id, parsed.data);
@@ -67,7 +81,11 @@ export async function updateScheduledSession(
     revalidatePath("/dashboard");
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: errorOf(e) };
+    return {
+      ok: false,
+      error: errorOf(e),
+      conflict: e instanceof ScheduleOverlapError,
+    };
   }
 }
 

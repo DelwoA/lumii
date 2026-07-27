@@ -2,14 +2,14 @@
    FILE: app/globals.css
    WHAT THIS FILE DOES:
      The app's global styling and, importantly, its COLOUR PALETTE. The theme
-     colours (background, foreground, the lime "primary" accent, borders, and so
+     colours (parchment, paper, forest, borders, and so
      on) are defined here as CSS variables.
 
    HOW TO CHANGE A COLOUR (e.g. the accent/button colour):
      - Search this file for "--primary" to find the main accent colour, and
        "--background" / "--foreground" for the base colours.
-     - The values under ":root" are the light theme; the ones under ".dark" are
-       the dark theme (LUMII runs in dark). Edit the matching one.
+     - LUMII intentionally uses one calm, light theme to keep study screens
+       comfortable and visually consistent.
      - Because shadcn components use these variables, changing a value here
        updates that colour everywhere at once.
 
@@ -20,8 +20,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @plugin "@tailwindcss/typography";
-
-@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
@@ -68,72 +66,39 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.9 0.214 122); /* Lumen lime #CAF136 */
-  --primary-foreground: oklch(0.205 0 0); /* near-black text on lime */
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.9 0.214 122); /* lime focus ring */
-  --chart-1: oklch(0.9 0.214 122); /* lime series */
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.75rem; /* 12px */
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.9 0.214 122);
-  --sidebar-primary-foreground: oklch(0.205 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.9 0.214 122);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.9 0.214 122); /* Lumen lime glows on black */
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.9 0.214 122);
-  --chart-1: oklch(0.9 0.214 122);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.9 0.214 122);
-  --sidebar-primary-foreground: oklch(0.205 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.9 0.214 122);
+  color-scheme: light;
+  --background: #f3f0e8;
+  --foreground: #223128;
+  --card: #fbfaf6;
+  --card-foreground: #223128;
+  --popover: #fbfaf6;
+  --popover-foreground: #223128;
+  --primary: #2f6048;
+  --primary-foreground: #fbfaf6;
+  --secondary: #dce8dc;
+  --secondary-foreground: #294636;
+  --muted: #e9eee7;
+  --muted-foreground: #607067;
+  --accent: #dce8dc;
+  --accent-foreground: #294636;
+  --destructive: #a9463b;
+  --border: #cdd8cf;
+  --input: #c3d0c6;
+  --ring: #2f6048;
+  --chart-1: #2f6048;
+  --chart-2: #78936c;
+  --chart-3: #a7b99d;
+  --chart-4: #496f56;
+  --chart-5: #c08a62;
+  --radius: 0.75rem;
+  --sidebar: #eeeee5;
+  --sidebar-foreground: #223128;
+  --sidebar-primary: #2f6048;
+  --sidebar-primary-foreground: #fbfaf6;
+  --sidebar-accent: #dce8dc;
+  --sidebar-accent-foreground: #294636;
+  --sidebar-border: #cdd8cf;
+  --sidebar-ring: #2f6048;
 }
 
 @layer base {
@@ -142,6 +107,14 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(
+        circle at 12% 0%,
+        rgb(220 232 220 / 55%),
+        transparent 30rem
+      ),
+      linear-gradient(180deg, rgb(251 250 246 / 55%), transparent 22rem);
+    background-attachment: fixed;
   }
   html {
     @apply font-sans;
@@ -155,5 +128,19 @@
   label[for],
   summary {
     cursor: pointer;
+  }
+  ::selection {
+    background: #c9dccb;
+    color: #223128;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }

@@ -29,6 +29,8 @@ import { useSessionStore } from "@/lib/stores/session-store";
 import { useCelebrationStore } from "@/lib/stores/celebration-store";
 import { HEARTBEAT_INTERVAL_SEC } from "@/lib/sessions/timing";
 import { formatClock, formatDurationShort } from "@/lib/format";
+import { SessionScorecard } from "@/components/session/session-scorecard";
+import type { SessionQualityBreakdown } from "@/lib/gamification/session-quality";
 
 /**
  * The persistent active-session bar. Mounted once in the app shell: it hydrates
@@ -43,6 +45,16 @@ export function ActiveSessionBar() {
   const [open, setOpen] = useState(false);
   const [goalDone, setGoalDone] = useState(false);
   const [reflection, setReflection] = useState("");
+  const [scorecard, setScorecard] = useState<{
+    sessionId: string;
+    durationSec: number;
+    qualityScore: number | null;
+    scoreStatus: "PENDING" | "SCORED" | "TOO_SHORT" | "NO_TARGET";
+    qualityBreakdown: SessionQualityBreakdown | null;
+    qualityVersion: string | null;
+    xpAwarded?: number;
+  } | null>(null);
+  const [scorecardOpen, setScorecardOpen] = useState(false);
 
   useEffect(() => {
     if (!hydrated) void refresh();
@@ -58,7 +70,15 @@ export function ActiveSessionBar() {
     };
   }, [active, beat]);
 
-  if (!active) return null;
+  if (!active) {
+    return (
+      <SessionScorecard
+        result={scorecard}
+        open={scorecardOpen}
+        onOpenChange={setScorecardOpen}
+      />
+    );
+  }
 
   const elapsedSec = Math.max(0, Math.floor((now - active.startedAtMs) / 1000));
   const target = active.targetDurationSec ?? null;
@@ -76,12 +96,25 @@ export function ActiveSessionBar() {
       toast.error(res.error ?? "Could not stop the session");
       return;
     }
-    if (res.scored) {
-      const xp = res.xpAwarded ? ` · +${res.xpAwarded} XP` : "";
-      toast.success(`Session saved. Quality ${res.qualityScore}/100${xp}`);
-    } else {
-      toast.success("Session saved (too short to score)");
+    if (
+      res.sessionId &&
+      res.durationSec !== undefined &&
+      res.scoreStatus &&
+      res.qualityBreakdown !== undefined &&
+      res.qualityVersion !== undefined
+    ) {
+      setScorecard({
+        sessionId: res.sessionId,
+        durationSec: res.durationSec,
+        qualityScore: res.qualityScore ?? null,
+        scoreStatus: res.scoreStatus,
+        qualityBreakdown: res.qualityBreakdown,
+        qualityVersion: res.qualityVersion,
+        xpAwarded: res.xpAwarded,
+      });
+      setScorecardOpen(true);
     }
+    toast.success("Session saved to your progress history");
     celebrate(res.celebration);
   }
 
@@ -173,6 +206,11 @@ export function ActiveSessionBar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <SessionScorecard
+        result={scorecard}
+        open={scorecardOpen}
+        onOpenChange={setScorecardOpen}
+      />
     </>
   );
 }

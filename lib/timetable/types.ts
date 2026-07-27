@@ -1,27 +1,33 @@
-// =============================================================================
-// FILE: lib/timetable/types.ts
-// WHAT THIS FILE DOES:
-//   The shared "shape" of a planned session as the Timetable screens use it.
-//   Kept separate (no server code) so the calendar/agenda components and the
-//   server logic agree on the same fields.
-// =============================================================================
-import type { SessionStatus } from "@prisma/client";
+export type TimetableDisplayStatus =
+  | "PLANNED"
+  | "ACTIVE"
+  | "PARTIAL"
+  | "COMPLETED"
+  | "MISSED"
+  | "CANCELLED";
 
-/** A scheduled session projected for the timetable UI (client-safe). */
 export interface TimetableSession {
   id: string;
   title: string;
+  subjectId: string | null;
   subjectName: string | null;
   subjectColor: string | null;
+  topicId: string | null;
   topicName: string | null;
   goal: string | null;
   plannedStartISO: string;
   plannedEndISO: string;
   plannedLocalDate: string;
+  planningTimezone: string;
   targetDurationSec: number;
-  status: SessionStatus;
-  /** True once a study session has been started for this plan. */
-  hasStudySession: boolean;
+  actualDurationSec: number;
+  remainingDurationSec: number;
+  completionPercent: number;
+  attemptCount: number;
+  latestQualityScore: number | null;
+  status: TimetableDisplayStatus;
+  canEdit: boolean;
+  canCancel: boolean;
 }
 
 export interface SubjectOption {

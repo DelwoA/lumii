@@ -21,14 +21,14 @@ folder.
   scoring, instant explanations, and a downloadable PDF result.
 - **AI tutor chat**: ask questions about a specific document; the tutor uses the
   material as context and favours guiding answers over hand-outs.
-- **Timetable & sessions**: plan study sessions, then start a live-timed session
-  with heartbeat tracking and gentle auto-stop when idle.
-- **Gamification**: a deterministic Session Quality score, an XP ledger, ranks,
-  an adherence streak, and trophies.
+- **Timetable & sessions**: plan study sessions, track partial/repeated attempts,
+  then start a live-timed session with heartbeat tracking and gentle auto-stop.
+- **Gamification**: an explainable, versioned Session Quality habit score, an XP
+  ledger, ranks, an adherence streak, and trophies.
 - **Mood check-in**: a privacy-hardened wellbeing signal (the text is classified
   once then discarded; only a label is stored, for 30 days).
-- **Progress analytics**: charts for study minutes, weekly adherence, cumulative
-  XP, and a study-activity heatmap.
+- **Progress analytics**: durable session-quality history, growth rings, date
+  ranges, CSV/PDF exports, study charts, and a study-activity heatmap.
 - **Public showcase**: an opt-in `/u/[handle]` page that shows only rank and
   trophies (never your materials, quizzes, timetable, sessions, or mood).
 
@@ -71,17 +71,17 @@ URL where Clerk can deliver webhooks; it can be left empty for local development
 
 ### Scripts
 
-| Script | Purpose |
-| --- | --- |
-| `pnpm dev` | Start the dev server |
-| `pnpm build` | Production build |
-| `pnpm lint` | ESLint |
-| `pnpm typecheck` | TypeScript check |
-| `pnpm test` | Run unit tests (Vitest) |
-| `pnpm e2e` | Run end-to-end tests (Playwright) |
-| `pnpm db:migrate` | Create/apply a dev migration |
-| `pnpm db:deploy` | Apply migrations (production/CI) |
-| `pnpm db:studio` | Open Prisma Studio |
+| Script            | Purpose                           |
+| ----------------- | --------------------------------- |
+| `pnpm dev`        | Start the dev server              |
+| `pnpm build`      | Production build                  |
+| `pnpm lint`       | ESLint                            |
+| `pnpm typecheck`  | TypeScript check                  |
+| `pnpm test`       | Run unit tests (Vitest)           |
+| `pnpm e2e`        | Run end-to-end tests (Playwright) |
+| `pnpm db:migrate` | Create/apply a dev migration      |
+| `pnpm db:deploy`  | Apply migrations (production/CI)  |
+| `pnpm db:studio`  | Open Prisma Studio                |
 
 ## Project structure
 

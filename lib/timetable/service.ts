@@ -1,15 +1,9 @@
-// =============================================================================
-// FILE: lib/timetable/service.ts
-// WHAT THIS FILE DOES:
-//   The back-end logic for the Timetable: creating, editing, listing, and
-//   cancelling planned study sessions, all owner-scoped to the signed-in user.
-//   It records each planned session with its local calendar date (using
-//   ./dates) so streaks and adherence line up with the student's own day.
-// =============================================================================
 import "server-only";
+
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isValidTimeZone, localDateString } from "./dates";
+import { deriveTimetableStatus } from "./status";
 import type { TimetableSession } from "./types";
 
 export interface ScheduledInput {
@@ -20,41 +14,84 @@ export interface ScheduledInput {
   startISO: string;
   endISO: string;
   timeZone: string;
+  allowOverlap?: boolean;
 }
 
-type Row = Prisma.ScheduledSessionGetPayload<{
-  include: {
-    subject: { select: { name: true; color: true } };
-    topic: { select: { name: true } };
-    studySession: { select: { id: true } };
-  };
-}>;
+export class ScheduleOverlapError extends Error {
+  constructor(public readonly conflictingTitle: string) {
+    super(`This overlaps with “${conflictingTitle}”`);
+    this.name = "ScheduleOverlapError";
+  }
+}
 
 const ROW_INCLUDE = {
   subject: { select: { name: true, color: true } },
   topic: { select: { name: true } },
-  studySession: { select: { id: true } },
+  studySessions: {
+    orderBy: { startedAt: "desc" },
+    select: {
+      id: true,
+      endedAt: true,
+      actualDurationSec: true,
+      qualityScore: true,
+    },
+  },
 } as const;
 
-function toTimetable(s: Row): TimetableSession {
+type Row = Prisma.ScheduledSessionGetPayload<{
+  include: typeof ROW_INCLUDE;
+}>;
+
+function toTimetable(row: Row): TimetableSession {
+  const endedAttempts = row.studySessions.filter((attempt) => attempt.endedAt);
+  const actualDurationSec = endedAttempts.reduce(
+    (sum, attempt) => sum + (attempt.actualDurationSec ?? 0),
+    0,
+  );
+  const active = row.studySessions.some((attempt) => !attempt.endedAt);
+  const status = deriveTimetableStatus({
+    storedStatus: row.status,
+    plannedEndMs: row.plannedEnd.getTime(),
+    nowMs: Date.now(),
+    targetDurationSec: row.targetDurationSec,
+    actualDurationSec,
+    hasActiveAttempt: active,
+  });
+
   return {
-    id: s.id,
-    title: s.title,
-    subjectName: s.subject?.name ?? null,
-    subjectColor: s.subject?.color ?? null,
-    topicName: s.topic?.name ?? null,
-    goal: s.goal,
-    plannedStartISO: s.plannedStart.toISOString(),
-    plannedEndISO: s.plannedEnd.toISOString(),
-    plannedLocalDate: s.plannedLocalDate,
-    targetDurationSec: s.targetDurationSec,
-    status: s.status,
-    hasStudySession: s.studySession !== null,
+    id: row.id,
+    title: row.title,
+    subjectId: row.subjectId,
+    subjectName: row.subject?.name ?? null,
+    subjectColor: row.subject?.color ?? null,
+    topicId: row.topicId,
+    topicName: row.topic?.name ?? null,
+    goal: row.goal,
+    plannedStartISO: row.plannedStart.toISOString(),
+    plannedEndISO: row.plannedEnd.toISOString(),
+    plannedLocalDate: row.plannedLocalDate,
+    planningTimezone: row.planningTimezone,
+    targetDurationSec: row.targetDurationSec,
+    actualDurationSec,
+    remainingDurationSec: Math.max(
+      0,
+      row.targetDurationSec - actualDurationSec,
+    ),
+    completionPercent: Math.min(
+      100,
+      Math.round((actualDurationSec / row.targetDurationSec) * 100),
+    ),
+    attemptCount: endedAttempts.length,
+    latestQualityScore:
+      endedAttempts.find((attempt) => attempt.qualityScore != null)
+        ?.qualityScore ?? null,
+    status,
+    canEdit: row.studySessions.length === 0,
+    canCancel:
+      status !== "ACTIVE" && status !== "COMPLETED" && status !== "CANCELLED",
   };
 }
 
-/** Flip overdue PLANNED sessions to MISSED. A later linked study session that
- * meets the adherence bar flips them back to COMPLETED (see sessions service). */
 export async function reconcileScheduled(userId: string): Promise<void> {
   await prisma.scheduledSession.updateMany({
     where: { userId, status: "PLANNED", plannedEnd: { lt: new Date() } },
@@ -62,7 +99,6 @@ export async function reconcileScheduled(userId: string): Promise<void> {
   });
 }
 
-/** List non-cancelled scheduled sessions whose start falls in [fromISO, toISO]. */
 export async function listScheduled(
   userId: string,
   fromISO: string,
@@ -81,47 +117,48 @@ export async function listScheduled(
   return rows.map(toTimetable);
 }
 
-/** Non-cancelled sessions planned for a specific local date (for the dashboard). */
 export async function listForLocalDate(
   userId: string,
   localDate: string,
 ): Promise<TimetableSession[]> {
   await reconcileScheduled(userId);
   const rows = await prisma.scheduledSession.findMany({
-    where: { userId, plannedLocalDate: localDate, status: { not: "CANCELLED" } },
+    where: {
+      userId,
+      plannedLocalDate: localDate,
+      status: { not: "CANCELLED" },
+    },
     orderBy: { plannedStart: "asc" },
     include: ROW_INCLUDE,
   });
   return rows.map(toTimetable);
 }
 
-/** Verify any chosen subject/topic belong to the user (and topic to subject). */
 async function assertSubjectTopic(
   userId: string,
   subjectId: string | null,
   topicId: string | null,
 ): Promise<void> {
+  if (!subjectId && topicId) throw new Error("Choose a subject first");
   if (subjectId) {
     const subject = await prisma.subject.findFirst({
-      where: { id: subjectId, userId },
+      where: { id: subjectId, userId, archivedAt: null },
       select: { id: true },
     });
     if (!subject) throw new Error("Subject not found");
   }
   if (topicId) {
     const topic = await prisma.topic.findFirst({
-      where: { id: topicId, userId },
+      where: { id: topicId, userId, archivedAt: null },
       select: { subjectId: true },
     });
-    if (!topic) throw new Error("Topic not found");
-    if (subjectId && topic.subjectId !== subjectId) {
+    if (!topic || topic.subjectId !== subjectId) {
       throw new Error("Topic does not belong to the chosen subject");
     }
   }
 }
 
-/** Lazily adopt the browser timezone if the user is still on the UTC default. */
-async function maybeAdoptTimeZone(userId: string, timeZone: string): Promise<void> {
+async function maybeAdoptTimeZone(userId: string, timeZone: string) {
   if (!isValidTimeZone(timeZone) || timeZone === "UTC") return;
   await prisma.user.updateMany({
     where: { id: userId, timezone: "UTC" },
@@ -129,21 +166,44 @@ async function maybeAdoptTimeZone(userId: string, timeZone: string): Promise<voi
   });
 }
 
-function parseWindow(input: ScheduledInput): {
-  plannedStart: Date;
-  plannedEnd: Date;
-  targetDurationSec: number;
-} {
+function parseWindow(input: ScheduledInput) {
   const plannedStart = new Date(input.startISO);
   const plannedEnd = new Date(input.endISO);
-  if (Number.isNaN(plannedStart.getTime()) || Number.isNaN(plannedEnd.getTime())) {
+  if (
+    Number.isNaN(plannedStart.getTime()) ||
+    Number.isNaN(plannedEnd.getTime())
+  ) {
     throw new Error("Invalid date");
   }
   const targetDurationSec = Math.round(
     (plannedEnd.getTime() - plannedStart.getTime()) / 1000,
   );
-  if (targetDurationSec <= 0) throw new Error("End must be after start");
+  if (targetDurationSec < 10 * 60 || targetDurationSec > 4 * 60 * 60) {
+    throw new Error("A plan must be between 10 minutes and 4 hours");
+  }
   return { plannedStart, plannedEnd, targetDurationSec };
+}
+
+async function assertNoOverlap(
+  userId: string,
+  plannedStart: Date,
+  plannedEnd: Date,
+  allowOverlap: boolean,
+  excludeId?: string,
+) {
+  if (allowOverlap) return;
+  const conflict = await prisma.scheduledSession.findFirst({
+    where: {
+      userId,
+      id: excludeId ? { not: excludeId } : undefined,
+      status: { not: "CANCELLED" },
+      plannedStart: { lt: plannedEnd },
+      plannedEnd: { gt: plannedStart },
+    },
+    orderBy: { plannedStart: "asc" },
+    select: { title: true },
+  });
+  if (conflict) throw new ScheduleOverlapError(conflict.title);
 }
 
 export async function createScheduled(
@@ -151,10 +211,15 @@ export async function createScheduled(
   input: ScheduledInput,
 ): Promise<void> {
   await assertSubjectTopic(userId, input.subjectId, input.topicId);
-  const { plannedStart, plannedEnd, targetDurationSec } = parseWindow(input);
+  const window = parseWindow(input);
+  await assertNoOverlap(
+    userId,
+    window.plannedStart,
+    window.plannedEnd,
+    Boolean(input.allowOverlap),
+  );
   const timeZone = isValidTimeZone(input.timeZone) ? input.timeZone : "UTC";
   await maybeAdoptTimeZone(userId, timeZone);
-
   await prisma.scheduledSession.create({
     data: {
       userId,
@@ -162,11 +227,9 @@ export async function createScheduled(
       topicId: input.topicId,
       title: input.title,
       goal: input.goal,
-      plannedStart,
-      plannedEnd,
-      plannedLocalDate: localDateString(plannedStart, timeZone),
+      ...window,
+      plannedLocalDate: localDateString(window.plannedStart, timeZone),
       planningTimezone: timeZone,
-      targetDurationSec,
     },
   });
 }
@@ -178,47 +241,63 @@ export async function updateScheduled(
 ): Promise<void> {
   const existing = await prisma.scheduledSession.findFirst({
     where: { id, userId },
-    select: { status: true },
+    select: { status: true, _count: { select: { studySessions: true } } },
   });
   if (!existing) throw new Error("Session not found");
-  if (existing.status === "COMPLETED") {
-    throw new Error("A completed session cannot be edited");
+  if (existing._count.studySessions > 0) {
+    throw new Error("A plan cannot be edited after an attempt has started");
   }
-
+  if (existing.status === "COMPLETED" || existing.status === "CANCELLED") {
+    throw new Error("This plan can no longer be edited");
+  }
   await assertSubjectTopic(userId, input.subjectId, input.topicId);
-  const { plannedStart, plannedEnd, targetDurationSec } = parseWindow(input);
+  const window = parseWindow(input);
+  await assertNoOverlap(
+    userId,
+    window.plannedStart,
+    window.plannedEnd,
+    Boolean(input.allowOverlap),
+    id,
+  );
   const timeZone = isValidTimeZone(input.timeZone) ? input.timeZone : "UTC";
   await maybeAdoptTimeZone(userId, timeZone);
-
-  await prisma.scheduledSession.updateMany({
-    where: { id, userId },
+  await prisma.scheduledSession.update({
+    where: { id },
     data: {
       subjectId: input.subjectId,
       topicId: input.topicId,
       title: input.title,
       goal: input.goal,
-      plannedStart,
-      plannedEnd,
-      plannedLocalDate: localDateString(plannedStart, timeZone),
+      ...window,
+      plannedLocalDate: localDateString(window.plannedStart, timeZone),
       planningTimezone: timeZone,
-      targetDurationSec,
-      // Editing an overdue (MISSED) session back into the future re-arms it.
-      status: plannedEnd > new Date() ? "PLANNED" : "MISSED",
+      status: window.plannedEnd > new Date() ? "PLANNED" : "MISSED",
     },
   });
 }
 
-export async function cancelScheduled(userId: string, id: string): Promise<void> {
+export async function cancelScheduled(
+  userId: string,
+  id: string,
+): Promise<void> {
   const existing = await prisma.scheduledSession.findFirst({
     where: { id, userId },
-    select: { status: true },
+    select: {
+      status: true,
+      studySessions: {
+        select: { endedAt: true, actualDurationSec: true },
+      },
+    },
   });
   if (!existing) throw new Error("Session not found");
   if (existing.status === "COMPLETED") {
-    throw new Error("A completed session cannot be cancelled");
+    throw new Error("A completed plan cannot be cancelled");
   }
-  await prisma.scheduledSession.updateMany({
-    where: { id, userId },
+  if (existing.studySessions.some((attempt) => !attempt.endedAt)) {
+    throw new Error("End the active attempt before cancelling this plan");
+  }
+  await prisma.scheduledSession.update({
+    where: { id },
     data: { status: "CANCELLED", cancelledAt: new Date() },
   });
 }

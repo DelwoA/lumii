@@ -20,7 +20,7 @@ export function Markdown({
   return (
     <div
       className={cn(
-        "prose prose-sm dark:prose-invert max-w-none prose-headings:font-semibold prose-headings:tracking-tight",
+        "prose prose-sm prose-headings:font-semibold prose-headings:tracking-tight max-w-none",
         className,
       )}
     >
