@@ -8,14 +8,18 @@
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SettingsClient } from "@/components/settings/settings-client";
+import { isDeviceApiEnabled, listDevices } from "@/lib/iot/service";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const user = await requireDbUser();
-  const publicProfile = await prisma.publicProfile.findUnique({
-    where: { userId: user.id },
-  });
+  const [publicProfile, devices] = await Promise.all([
+    prisma.publicProfile.findUnique({
+      where: { userId: user.id },
+    }),
+    listDevices(user.id),
+  ]);
 
   return (
     <SettingsClient
@@ -33,6 +37,8 @@ export default async function SettingsPage() {
           : null
       }
       defaultDisplayName={user.displayName ?? ""}
+      devices={devices}
+      deviceApiEnabled={isDeviceApiEnabled()}
     />
   );
 }

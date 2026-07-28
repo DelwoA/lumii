@@ -47,8 +47,15 @@ export async function awardXp(opts: {
   sourceId?: string;
   payload?: Prisma.InputJsonValue;
 }): Promise<AwardResult> {
-  const { userId, type, requestedXp, idempotencyKey, sourceType, sourceId, payload } =
-    opts;
+  const {
+    userId,
+    type,
+    requestedXp,
+    idempotencyKey,
+    sourceType,
+    sourceId,
+    payload,
+  } = opts;
 
   const runAward = (): Promise<AwardResult> =>
     prisma.$transaction(async (tx) => {
@@ -80,7 +87,15 @@ export async function awardXp(opts: {
       const xpAwarded = applyDailyCap(todays._sum.xpDelta ?? 0, requestedXp);
 
       await tx.activityEvent.create({
-        data: { userId, type, xpDelta: xpAwarded, idempotencyKey, sourceType, sourceId, payload },
+        data: {
+          userId,
+          type,
+          xpDelta: xpAwarded,
+          idempotencyKey,
+          sourceType,
+          sourceId,
+          payload,
+        },
       });
 
       const totalXp = profile.totalXp + xpAwarded;
@@ -90,6 +105,20 @@ export async function awardXp(opts: {
         where: { userId },
         data: { totalXp, rank },
       });
+
+      if (rankedUp) {
+        await tx.activityEvent.create({
+          data: {
+            userId,
+            type: "RANK_UP",
+            xpDelta: 0,
+            idempotencyKey: `rank-up:${idempotencyKey}:${rank}`,
+            sourceType: "gamification",
+            sourceId: rank,
+            payload: { fromRank: profile.rank, toRank: rank },
+          },
+        });
+      }
 
       return {
         xpAwarded,
@@ -103,7 +132,10 @@ export async function awardXp(opts: {
   try {
     return await runAward();
   } catch (e) {
-    if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") {
+    if (
+      !(e instanceof Prisma.PrismaClientKnownRequestError) ||
+      e.code !== "P2002"
+    ) {
       throw e;
     }
     // A unique conflict has two causes. If OUR event now exists, a concurrent

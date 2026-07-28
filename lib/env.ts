@@ -25,7 +25,9 @@ import { z } from "zod";
  * value is missing. Never log secret VALUES.
  */
 const serverSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  NODE_ENV: z
+    .enum(["development", "test", "production"])
+    .default("development"),
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
 
   // Database (Neon)
@@ -49,6 +51,13 @@ const serverSchema = z.object({
 
   // Quiz token encryption (32+ char secret)
   QUIZ_TOKEN_SECRET: z.string().optional(),
+
+  // IoT desk companion API
+  IOT_DEVICE_API_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  DEVICE_AUTH_PEPPER: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;

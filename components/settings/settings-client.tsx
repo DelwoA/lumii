@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { updateProfile, savePublicProfile } from "@/app/(app)/settings/actions";
 import { deleteMoodData } from "@/app/(app)/mood/actions";
+import { DeviceSettingsCard } from "@/components/settings/device-settings-card";
+import type { DeviceView } from "@/lib/iot/schemas";
 
 interface ProfileInit {
   displayName: string | null;
@@ -49,10 +51,14 @@ export function SettingsClient({
   profile,
   publicProfile,
   defaultDisplayName,
+  devices,
+  deviceApiEnabled,
 }: {
   profile: ProfileInit;
   publicProfile: PublicInit | null;
   defaultDisplayName: string;
+  devices: DeviceView[];
+  deviceApiEnabled: boolean;
 }) {
   const router = useRouter();
 
@@ -269,6 +275,8 @@ export function SettingsClient({
         </div>
       </Card>
 
+      <DeviceSettingsCard devices={devices} enabled={deviceApiEnabled} />
+
       {/* Privacy + danger zone */}
       <Card className="space-y-5 p-5">
         <div>
@@ -305,9 +313,9 @@ export function SettingsClient({
         </AlertDialog>
 
         <p className="text-muted-foreground border-t pt-4 text-sm">
-          To delete your entire account, open the account menu (your avatar,
-          top right) and choose to delete it. Your materials and data are
-          removed automatically.
+          To delete your entire account, open the account menu (your avatar, top
+          right) and choose to delete it. Your materials and data are removed
+          automatically.
         </p>
       </Card>
     </div>

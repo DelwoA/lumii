@@ -16,6 +16,14 @@ import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { HANDLE_RE, normalizeHandle } from "@/lib/public-profile";
 import { isValidTimeZone } from "@/lib/timetable/dates";
+import { updateDeviceInputSchema } from "@/lib/iot/schemas";
+import {
+  createDevicePairingCode,
+  DeviceApiDisabledError,
+  DeviceLimitError,
+  PairingCodeLimitError,
+  updateDevice,
+} from "@/lib/iot/service";
 
 export type SettingsResult = { ok: true } | { ok: false; error: string };
 
@@ -31,7 +39,10 @@ export async function updateProfile(input: {
   const user = await requireDbUser();
   const parsed = profileSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
   }
   if (!isValidTimeZone(parsed.data.timezone)) {
     return { ok: false, error: "That timezone is not recognised" };
@@ -73,7 +84,10 @@ export async function savePublicProfile(input: {
   const user = await requireDbUser();
   const parsed = publicSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
   }
   const data = parsed.data;
 
@@ -99,7 +113,10 @@ export async function savePublicProfile(input: {
       },
     });
   } catch (e) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
       return { ok: false, error: "That handle is already taken" };
     }
     return { ok: false, error: "Could not save your public profile" };
@@ -107,5 +124,52 @@ export async function savePublicProfile(input: {
 
   revalidatePath("/settings");
   revalidatePath(`/u/${data.handle}`);
+  return { ok: true };
+}
+
+export type PairingCodeResult =
+  | { ok: true; pairingCode: string; expiresAtISO: string }
+  | { ok: false; error: string };
+
+export async function generateDevicePairingCode(): Promise<PairingCodeResult> {
+  const user = await requireDbUser();
+  try {
+    const result = await createDevicePairingCode(user.id);
+    return { ok: true, ...result };
+  } catch (error) {
+    if (error instanceof DeviceApiDisabledError) {
+      return { ok: false, error: "Device pairing is not enabled yet" };
+    }
+    if (error instanceof DeviceLimitError) {
+      return { ok: false, error: "Unpair a device before adding another one" };
+    }
+    if (error instanceof PairingCodeLimitError) {
+      return {
+        ok: false,
+        error: "Too many pairing codes were requested. Try again in one hour.",
+      };
+    }
+    return { ok: false, error: "Could not generate a pairing code" };
+  }
+}
+
+export async function saveDeviceSettings(input: {
+  deviceId: string;
+  name: string;
+  brightness: number;
+  volume: number;
+  moodNudgeEnabled: boolean;
+}): Promise<SettingsResult> {
+  const user = await requireDbUser();
+  const parsed = updateDeviceInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid device settings",
+    };
+  }
+  const updated = await updateDevice(user.id, parsed.data);
+  if (!updated) return { ok: false, error: "Device not found" };
+  revalidatePath("/settings");
   return { ok: true };
 }
