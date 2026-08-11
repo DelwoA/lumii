@@ -1,0 +1,120 @@
+{
+  "model_version": "temporal-gru-v1",
+  "created_at": "2026-08-10T23:14:33.475068+00:00",
+  "sequence_length": 50,
+  "feature_names": [
+    "previous_correct",
+    "elapsed_log_scaled",
+    "gap_log_scaled",
+    "attempt_log_scaled",
+    "running_accuracy"
+  ],
+  "normalization": {
+    "elapsed_scale_seconds": 3600.0,
+    "gap_scale_seconds": 2592000.0,
+    "attempt_scale": 100.0
+  },
+  "temperature": 1.0043115708458203,
+  "bkt_parameters": {
+    "prior": 0.7571719352777952,
+    "learn": 0.07395798983169082,
+    "forget": 0.012125785317259273,
+    "guess": 0.35,
+    "slip": 0.28956306650520824
+  },
+  "metrics": {
+    "deep_calibrated": {
+      "examples": 455391,
+      "accuracy": 0.6442815075396747,
+      "precision": 0.647631323491703,
+      "recall": 0.9722226995741639,
+      "f1": 0.7774056979062606,
+      "roc_auc": 0.6122003733230152,
+      "log_loss": 0.6348639474215537,
+      "brier": 0.22212543924541828,
+      "ece_15": 0.008723329374772701
+    },
+    "bkt_fitted": {
+      "examples": 455391,
+      "accuracy": 0.6425928487826944,
+      "precision": 0.649485882465432,
+      "recall": 0.9571689287420478,
+      "f1": 0.773865925668635,
+      "roc_auc": 0.5983744368402906,
+      "log_loss": 0.6422430966549824,
+      "brier": 0.22523130732354915,
+      "ece_15": 0.018699808414820628
+    },
+    "global_mean": {
+      "examples": 455391,
+      "accuracy": 0.6389168868071613,
+      "precision": 0.6389168868071613,
+      "recall": 1.0,
+      "f1": 0.7796818642241957,
+      "roc_auc": 0.5,
+      "log_loss": 0.6540587168461095,
+      "brier": 0.2307112498696358,
+      "ece_15": 0.003025113192838824
+    }
+  },
+  "promotion_checks": {
+    "minimum_test_examples": true,
+    "calibration": true,
+    "auc_improvement": true,
+    "log_loss_improvement": true,
+    "minimum_accuracy_0_72": false,
+    "minimum_roc_auc_0_78": false
+  },
+  "promote_deep": false,
+  "production_recommendation": "bkt_only",
+  "superseded_by_evaluation": "transfer-attention-v2",
+  "superseded_reason": "The legacy champion does not meet the stricter accuracy and ROC-AUC gates adopted after the accuracy audit.",
+  "onnx_max_absolute_error": 2.9802322387695312e-08,
+  "training_history": [
+    {
+      "epoch": 1.0,
+      "train_loss": 0.6399759450734821,
+      "validation_log_loss": 0.6344176682258893
+    },
+    {
+      "epoch": 2.0,
+      "train_loss": 0.638299879178542,
+      "validation_log_loss": 0.6334431156731026
+    },
+    {
+      "epoch": 3.0,
+      "train_loss": 0.6376626775233016,
+      "validation_log_loss": 0.6334464921466616
+    },
+    {
+      "epoch": 4.0,
+      "train_loss": 0.6371125256453957,
+      "validation_log_loss": 0.6325779464940814
+    },
+    {
+      "epoch": 5.0,
+      "train_loss": 0.6369331944562273,
+      "validation_log_loss": 0.6323383074172553
+    },
+    {
+      "epoch": 6.0,
+      "train_loss": 0.6365865801166487,
+      "validation_log_loss": 0.6324809278597772
+    },
+    {
+      "epoch": 7.0,
+      "train_loss": 0.6364006724364926,
+      "validation_log_loss": 0.6326294820594293
+    },
+    {
+      "epoch": 8.0,
+      "train_loss": 0.6362384373480369,
+      "validation_log_loss": 0.6322915840057493
+    }
+  ],
+  "dataset_examples": {
+    "train": 500000,
+    "validation": 414877,
+    "test": 455391
+  }
+}

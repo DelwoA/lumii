@@ -30,16 +30,26 @@ const STATUS_LABEL = {
 
 export default async function MaterialDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
+  const query = await searchParams;
+  const tab = Array.isArray(query.tab) ? query.tab[0] : query.tab;
+  const focus = Array.isArray(query.focus) ? query.focus[0] : query.focus;
   const user = await requireDbUser();
 
   const material = await prisma.material.findFirst({
     where: { id, userId: user.id },
     include: {
       subject: { select: { name: true } },
+      topic: { select: { name: true } },
+      knowledgeComponents: {
+        include: { knowledgeComponent: true },
+        orderBy: { createdAt: "asc" },
+      },
       summaries: {
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -180,6 +190,26 @@ export default async function MaterialDetailPage({
             materialId={material.id}
             materialTitle={material.title}
             summaryMarkdown={latestSummary}
+            topicName={material.topic?.name ?? null}
+            concepts={material.knowledgeComponents.map((link) => {
+              const evidence = link.evidence as {
+                passages?: unknown;
+              } | null;
+              return {
+                id: link.knowledgeComponent.id,
+                name: link.knowledgeComponent.name,
+                description: link.knowledgeComponent.description,
+                status: link.knowledgeComponent.status,
+                evidence: Array.isArray(evidence?.passages)
+                  ? evidence.passages.filter(
+                      (passage): passage is string =>
+                        typeof passage === "string",
+                    )
+                  : [],
+              };
+            })}
+            defaultTab={tab === "quiz" || tab === "chat" ? tab : "summary"}
+            initialFocusComponentId={focus}
           />
         </Card>
       ) : null}

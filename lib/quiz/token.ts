@@ -22,6 +22,7 @@ import {
   createHash,
   randomBytes,
 } from "node:crypto";
+import type { QuizDifficulty } from "@/lib/quiz/types";
 
 /**
  * The quiz answer key never reaches the browser. On generation the server
@@ -35,11 +36,22 @@ export interface QuizAnswerKey {
   quizInstanceId: string;
   userId: string;
   materialId: string | null;
+  mode: "QUICK" | "STANDARD";
   questionCount: number;
-  correctAnswers: number[];
-  explanations: (string | null)[];
+  questions: QuizTokenQuestion[];
   modelId: string;
   generationVersion: string;
+}
+
+export interface QuizTokenQuestion {
+  id: number;
+  question: string;
+  options: [string, string, string, string];
+  correctAnswer: number;
+  explanation: string | null;
+  componentId: string;
+  componentName: string;
+  difficulty: QuizDifficulty;
 }
 
 const TTL_MS = 45 * 60 * 1000; // 45 minutes
@@ -50,7 +62,9 @@ function getKey(): Buffer {
   return createHash("sha256").update(secret).digest(); // 32 bytes
 }
 
-export async function encryptQuizToken(payload: QuizAnswerKey): Promise<string> {
+export async function encryptQuizToken(
+  payload: QuizAnswerKey,
+): Promise<string> {
   const key = getKey();
   const iv = randomBytes(12);
   const plaintext = Buffer.from(
@@ -84,6 +98,19 @@ export async function decryptQuizToken(token: string): Promise<QuizAnswerKey> {
   }
   const { exp: _exp, ...rest } = obj;
   void _exp;
+  if (
+    !Array.isArray(rest.questions) ||
+    rest.questions.length !== rest.questionCount
+  ) {
+    throw new Error("Malformed quiz token payload");
+  }
+  if (
+    rest.questions.some(
+      (question) => !["EASY", "MEDIUM", "HARD"].includes(question.difficulty),
+    )
+  ) {
+    throw new Error("Malformed quiz difficulty");
+  }
   return rest;
 }
 

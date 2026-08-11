@@ -20,15 +20,27 @@ import { generateSummary } from "@/app/(app)/materials/ai";
 import { QuizRunner } from "@/components/materials/quiz-runner";
 import { MaterialChat } from "@/components/materials/material-chat";
 import { useCelebrationStore } from "@/lib/stores/celebration-store";
+import {
+  ConceptSetup,
+  type MaterialConcept,
+} from "@/components/materials/concept-setup";
 
 export function MaterialAISection({
   materialId,
   materialTitle,
   summaryMarkdown,
+  topicName,
+  concepts,
+  defaultTab,
+  initialFocusComponentId,
 }: {
   materialId: string;
   materialTitle: string;
   summaryMarkdown: string | null;
+  topicName: string | null;
+  concepts: MaterialConcept[];
+  defaultTab: "summary" | "quiz" | "chat";
+  initialFocusComponentId?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -40,7 +52,9 @@ export function MaterialAISection({
     setBusy(false);
     if (res.ok) {
       toast.success(
-        res.xpAwarded ? `Summary ready · +${res.xpAwarded} XP` : "Summary ready",
+        res.xpAwarded
+          ? `Summary ready · +${res.xpAwarded} XP`
+          : "Summary ready",
       );
       router.refresh();
       celebrate(res.celebration);
@@ -50,57 +64,75 @@ export function MaterialAISection({
   }
 
   return (
-    <Tabs defaultValue="summary" className="w-full">
-      <TabsList>
-        <TabsTrigger value="summary">Summary</TabsTrigger>
-        <TabsTrigger value="quiz">Quiz</TabsTrigger>
-        <TabsTrigger value="chat">Chat</TabsTrigger>
-      </TabsList>
+    <div className="space-y-5">
+      <ConceptSetup
+        materialId={materialId}
+        topicName={topicName}
+        initialConcepts={concepts}
+      />
+      <Tabs defaultValue={defaultTab} className="w-full">
+        <TabsList>
+          <TabsTrigger value="summary">Summary</TabsTrigger>
+          <TabsTrigger value="quiz">Quiz</TabsTrigger>
+          <TabsTrigger value="chat">Chat</TabsTrigger>
+        </TabsList>
 
-      <TabsContent value="summary" className="mt-4">
-        {busy ? (
-          <div className="space-y-3">
-            <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-5/6" />
-            <Skeleton className="h-4 w-1/2" />
-          </div>
-        ) : summaryMarkdown ? (
-          <div className="space-y-4">
-            <Markdown>{summaryMarkdown}</Markdown>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={onGenerateSummary}
-              disabled={busy}
-            >
-              <RefreshCw className="size-4" />
-              Regenerate
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-3 py-10 text-center">
-            <Sparkles className="text-primary size-8" />
-            <p className="text-muted-foreground max-w-sm text-sm">
-              Generate a clear, structured revision summary of this material.
-            </p>
-            <Button onClick={onGenerateSummary} disabled={busy} className="gap-2">
-              <Sparkles className="size-4" />
-              Generate summary
-            </Button>
-          </div>
-        )}
-      </TabsContent>
+        <TabsContent value="summary" className="mt-4">
+          {busy ? (
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+          ) : summaryMarkdown ? (
+            <div className="space-y-4">
+              <Markdown>{summaryMarkdown}</Markdown>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={onGenerateSummary}
+                disabled={busy}
+              >
+                <RefreshCw className="size-4" />
+                Regenerate
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 py-10 text-center">
+              <Sparkles className="text-primary size-8" />
+              <p className="text-muted-foreground max-w-sm text-sm">
+                Generate a clear, structured revision summary of this material.
+              </p>
+              <Button
+                onClick={onGenerateSummary}
+                disabled={busy}
+                className="gap-2"
+              >
+                <Sparkles className="size-4" />
+                Generate summary
+              </Button>
+            </div>
+          )}
+        </TabsContent>
 
-      <TabsContent value="quiz" className="mt-4">
-        <QuizRunner materialId={materialId} materialTitle={materialTitle} />
-      </TabsContent>
+        <TabsContent value="quiz" className="mt-4">
+          <QuizRunner
+            materialId={materialId}
+            materialTitle={materialTitle}
+            concepts={concepts.filter(
+              (concept) => concept.status === "CONFIRMED",
+            )}
+            initialFocusComponentId={initialFocusComponentId}
+          />
+        </TabsContent>
 
-      <TabsContent value="chat" className="mt-4">
-        <MaterialChat materialId={materialId} />
-      </TabsContent>
-    </Tabs>
+        <TabsContent value="chat" className="mt-4">
+          <MaterialChat materialId={materialId} />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }

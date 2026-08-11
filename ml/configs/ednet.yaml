@@ -1,0 +1,39 @@
+seed: 42
+dataset:
+  name: ednet-kt1
+  kaggle_slug: xuedengyue/ednetkt1
+  kaggle_file: content/drive/MyDrive/EdNET-KT1/processed_data_03.csv
+  kaggle_version: 1
+  license_on_kaggle: Attribution 4.0 International (CC BY 4.0)
+  provenance_note: Processed EdNet-KT1 mirror; retain the official EdNet citation and research-use restrictions.
+  raw_dir: data/raw/ednet-kt1
+  processed_path: data/processed/ednet_single_skill.parquet
+  manifest_path: data/processed/ednet_manifest.json
+  single_skill_only: true
+  max_rows: 8000000
+split:
+  train: 0.70
+  validation: 0.15
+  test: 0.15
+features:
+  sequence_length: 50
+  elapsed_quantiles: [0.005, 0.995]
+  gap_quantiles: [0.005, 0.995]
+model:
+  hidden_size: 48
+  layers: 1
+  dropout: 0.10
+  batch_size: 256
+  learning_rate: 0.001
+  epochs: 15
+  patience: 3
+  weight_decay: 0.0001
+  max_sequences_per_split: 1500000
+selection:
+  minimum_test_examples: 1000
+  maximum_ece: 0.05
+  require_auc_improvement: true
+  require_log_loss_improvement: true
+artifacts:
+  directory: artifacts/champion
+  report_directory: reports/generated

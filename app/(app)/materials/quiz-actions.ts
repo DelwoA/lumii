@@ -1,23 +1,18 @@
 "use server";
 
-// =============================================================================
-// FILE: app/(app)/materials/quiz-actions.ts
-// WHAT THIS FILE DOES:
-//   The two server actions behind the quiz:
-//     - startQuiz: generate the questions, then send the browser the questions
-//       WITHOUT the answers, plus a sealed token (lib/quiz/token.ts) that hides
-//       the correct answers.
-//     - submitQuiz: unlock the token, mark the answers on the server (so marking
-//       can't be faked), save a minimal completion record (counts only, never
-//       the questions), award points, and return the graded result.
-//   Owner-checked, and the quiz content itself is never stored.
-// =============================================================================
-
 import { randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
+import { revalidatePath } from "next/cache";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { loadMaterialForAI } from "@/lib/materials/content";
-import { generateQuiz, QUIZ_GENERATION_VERSION } from "@/lib/ai/quiz";
+import {
+  generateQuiz,
+  QUICK_QUIZ_COUNT,
+  QUIZ_GENERATION_VERSION,
+  STANDARD_QUIZ_COUNT,
+  type QuizTarget,
+} from "@/lib/ai/quiz";
 import {
   encryptQuizToken,
   decryptQuizToken,
@@ -28,52 +23,150 @@ import { quizXp } from "@/lib/gamification/xp";
 import { awardXp } from "@/lib/gamification/award";
 import { getCurrentRank, runAwardChecks } from "@/lib/gamification/service";
 import { recordSessionActivity } from "@/lib/sessions/service";
+import {
+  getMasteryOverview,
+  recomputeMasteryForComponents,
+} from "@/lib/mastery/service";
 import type {
+  QuizDifficulty,
+  QuizMode,
   QuizQuestionPublic,
   GradedQuestion,
   StartQuizResult,
   SubmitQuizResult,
 } from "@/lib/quiz/types";
 
-/** Generate a quiz: returns questions WITHOUT the answer key, plus the encrypted token. */
-export async function startQuiz(materialId: string): Promise<StartQuizResult> {
+const DIFFICULTY_PATTERN: readonly QuizDifficulty[] = [
+  "EASY",
+  "MEDIUM",
+  "MEDIUM",
+  "HARD",
+  "MEDIUM",
+];
+
+function buildTargetSequence(
+  components: Array<{
+    id: string;
+    name: string;
+    description: string;
+    mastery: Array<{ masteryProbability: number }>;
+  }>,
+  count: number,
+  targetedComponentId?: string,
+): QuizTarget[] {
+  if (targetedComponentId) {
+    const target = components.find(
+      (component) => component.id === targetedComponentId,
+    );
+    if (!target) throw new Error("Selected concept is unavailable");
+    return Array.from({ length: count }, (_, index) => ({
+      id: target.id,
+      name: target.name,
+      description: target.description,
+      difficulty: DIFFICULTY_PATTERN[index % DIFFICULTY_PATTERN.length]!,
+    }));
+  }
+
+  const ordered = components.toSorted((a, b) => {
+    const aMastery = a.mastery[0]?.masteryProbability;
+    const bMastery = b.mastery[0]?.masteryProbability;
+    if (aMastery == null && bMastery != null) return -1;
+    if (aMastery != null && bMastery == null) return 1;
+    return (aMastery ?? 0) - (bMastery ?? 0);
+  });
+  const pool = ordered.slice(0, Math.min(5, ordered.length));
+  return Array.from({ length: count }, (_, index) => {
+    const component = pool[index % pool.length]!;
+    return {
+      id: component.id,
+      name: component.name,
+      description: component.description,
+      difficulty: DIFFICULTY_PATTERN[index % DIFFICULTY_PATTERN.length]!,
+    };
+  });
+}
+export async function startQuiz(input: {
+  materialId: string;
+  mode: QuizMode;
+  componentId?: string;
+}): Promise<StartQuizResult> {
   const user = await requireDbUser();
-  const loaded = await loadMaterialForAI(user.id, materialId);
+  const loaded = await loadMaterialForAI(user.id, input.materialId);
   if (!loaded) return { ok: false, error: "Material is not ready yet" };
+  if (!loaded.topicId) {
+    return {
+      ok: false,
+      error: "Assign this material to a topic before generating a quiz.",
+    };
+  }
+
+  const links = await prisma.materialKnowledgeComponent.findMany({
+    where: {
+      materialId: input.materialId,
+      userId: user.id,
+      knowledgeComponent: { status: "CONFIRMED" },
+    },
+    include: {
+      knowledgeComponent: {
+        include: { mastery: { where: { userId: user.id }, take: 1 } },
+      },
+    },
+  });
+  const components = links.map((link) => link.knowledgeComponent);
+  if (components.length === 0) {
+    return {
+      ok: false,
+      error: "Confirm this material's concept map before generating a quiz.",
+    };
+  }
 
   try {
-    const { quiz, modelId } = await generateQuiz(loaded.content);
+    const count =
+      input.mode === "STANDARD" ? STANDARD_QUIZ_COUNT : QUICK_QUIZ_COUNT;
+    const targets = buildTargetSequence(components, count, input.componentId);
+    const { quiz, modelId } = await generateQuiz(loaded.content, targets);
     const quizInstanceId = randomUUID();
+    const canonicalQuestions = quiz.questions.map((question, index) => ({
+      id: index,
+      question: question.question,
+      options: question.options,
+      correctAnswer: question.correctAnswer,
+      explanation: question.explanation ?? null,
+      componentId: question.componentId,
+      componentName: question.componentName,
+      difficulty: question.difficulty,
+    }));
     const token = await encryptQuizToken({
       quizInstanceId,
       userId: user.id,
-      materialId,
-      questionCount: quiz.questions.length,
-      correctAnswers: quiz.questions.map((q) => q.correctAnswer),
-      explanations: quiz.questions.map((q) => q.explanation ?? null),
+      materialId: input.materialId,
+      mode: input.mode,
+      questionCount: canonicalQuestions.length,
+      questions: canonicalQuestions,
       modelId,
       generationVersion: QUIZ_GENERATION_VERSION,
     });
-    const questions: QuizQuestionPublic[] = quiz.questions.map((q, i) => ({
-      id: i,
-      question: q.question,
-      options: q.options,
-    }));
+    const questions: QuizQuestionPublic[] = canonicalQuestions.map(
+      ({ correctAnswer: _correct, explanation: _explanation, ...question }) => {
+        void _correct;
+        void _explanation;
+        return question;
+      },
+    );
     return { ok: true, token, questions };
   } catch {
     return {
       ok: false,
-      error: "Could not generate the quiz. Please try again.",
+      error: "Could not generate a concept-aligned quiz. Please try again.",
     };
   }
 }
 
-/** Submit answers: verify the token, recompute the score server-side, record the completion + XP. */
 export async function submitQuiz(input: {
   materialId: string;
   token: string;
-  questions: QuizQuestionPublic[];
   answers: (number | null)[];
+  responseTimesMs?: (number | null)[];
   durationSec: number;
 }): Promise<SubmitQuizResult> {
   const user = await requireDbUser();
@@ -91,34 +184,102 @@ export async function submitQuiz(input: {
     return { ok: false, error: "This quiz does not match your session." };
   }
 
-  const { correctCount, questionCount } = scoreQuiz(
-    key.correctAnswers,
-    input.answers,
+  const answers = key.questions.map((_, index) => {
+    const answer = input.answers[index];
+    return Number.isInteger(answer) && answer! >= 0 && answer! <= 3
+      ? answer!
+      : null;
+  });
+  const correctAnswers = key.questions.map(
+    (question) => question.correctAnswer,
   );
+  const { correctCount, questionCount } = scoreQuiz(correctAnswers, answers);
 
   const meta = await prisma.material.findFirst({
     where: { id: input.materialId, userId: user.id },
-    select: { subjectId: true, topicId: true },
+    select: {
+      title: true,
+      subjectId: true,
+      topicId: true,
+      subject: { select: { name: true } },
+      topic: { select: { name: true } },
+    },
   });
+  if (!meta) return { ok: false, error: "Material not found." };
 
   const rankBefore = await getCurrentRank(user.id);
   let xpAwarded = 0;
+  let completionId: string | null = null;
+  let created = false;
   try {
-    // The unique idempotencyKey makes a completion record at-most-once.
-    await prisma.quizCompletion.create({
+    const completion = await prisma.quizCompletion.create({
       data: {
         userId: user.id,
-        subjectId: meta?.subjectId ?? null,
-        topicId: meta?.topicId ?? null,
+        subjectId: meta.subjectId,
+        topicId: meta.topicId,
         materialId: input.materialId,
+        materialTitle: meta.title,
+        subjectName: meta.subject?.name ?? null,
+        topicName: meta.topic?.name ?? null,
         questionCount,
         correctCount,
-        durationSec: Math.max(0, Math.floor(input.durationSec)),
+        durationSec: Math.min(
+          14_400,
+          Math.max(0, Math.floor(input.durationSec)),
+        ),
+        mode: key.mode,
         modelId: key.modelId,
         generationVersion: key.generationVersion,
         idempotencyKey: key.quizInstanceId,
+        questionAttempts: {
+          create: key.questions.map((question, index) => ({
+            userId: user.id,
+            knowledgeComponentId: question.componentId,
+            componentName: question.componentName,
+            difficulty: question.difficulty,
+            position: index,
+            question: question.question,
+            options: question.options,
+            chosenOption: answers[index],
+            correctOption: question.correctAnswer,
+            isCorrect: answers[index] === question.correctAnswer,
+            explanation: question.explanation,
+            responseTimeMs:
+              input.responseTimesMs?.[index] == null
+                ? null
+                : Math.min(
+                    14_400_000,
+                    Math.max(0, Math.floor(input.responseTimesMs[index]!)),
+                  ),
+          })),
+        },
       },
+      select: { id: true },
     });
+    completionId = completion.id;
+    created = true;
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const existing = await prisma.quizCompletion.findUnique({
+        where: { idempotencyKey: key.quizInstanceId },
+        select: { id: true, userId: true },
+      });
+      if (existing?.userId !== user.id) {
+        return { ok: false, error: "This quiz could not be recorded." };
+      }
+      completionId = existing.id;
+    } else {
+      return {
+        ok: false,
+        error: "Your answers were marked but the quiz could not be saved.",
+      };
+    }
+  }
+
+  if (created) {
     const award = await awardXp({
       userId: user.id,
       type: "QUIZ_COMPLETED",
@@ -129,29 +290,47 @@ export async function submitQuiz(input: {
       payload: { questionCount, correctCount },
     });
     xpAwarded = award.xpAwarded;
-  } catch {
-    // Duplicate submission (idempotencyKey clash) -> no additional XP.
-    xpAwarded = 0;
+    await recomputeMasteryForComponents({
+      userId: user.id,
+      componentIds: key.questions.map((question) => question.componentId),
+      quizCompletionId: completionId!,
+    });
   }
 
   await recordSessionActivity(user.id, "QUIZ_COMPLETED", key.quizInstanceId);
-  const celebration = await runAwardChecks(user.id, rankBefore);
+  const [celebration, overview] = await Promise.all([
+    runAwardChecks(user.id, rankBefore),
+    getMasteryOverview(user.id),
+  ]);
+  const affected = new Set(
+    key.questions.map((question) => question.componentId),
+  );
+  const masteryUpdates = overview.components.filter((component) =>
+    affected.has(component.componentId),
+  );
 
-  const graded: GradedQuestion[] = input.questions.map((q, i) => ({
-    id: q.id,
-    question: q.question,
-    options: q.options,
-    chosen: input.answers[i] ?? null,
-    correctAnswer: key.correctAnswers[i],
-    explanation: key.explanations[i] ?? null,
+  const graded: GradedQuestion[] = key.questions.map((question, index) => ({
+    id: question.id,
+    question: question.question,
+    options: question.options,
+    chosen: answers[index] ?? null,
+    correctAnswer: question.correctAnswer,
+    explanation: question.explanation,
+    componentId: question.componentId,
+    componentName: question.componentName,
+    difficulty: question.difficulty,
   }));
 
+  revalidatePath("/progress");
+  revalidatePath("/progress/mastery");
+  revalidatePath("/progress/quizzes");
   return {
     ok: true,
     correctCount,
     questionCount,
     graded,
     xpAwarded,
+    masteryUpdates,
     celebration,
   };
 }

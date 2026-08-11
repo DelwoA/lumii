@@ -13,6 +13,8 @@ import { QualityHub } from "@/components/progress/quality-hub";
 import { SessionHistory } from "@/components/progress/session-history";
 import { ProgressExportButtons } from "@/components/progress/progress-export-buttons";
 import { getMoodSummary, purgeExpiredMoodCheckins } from "@/lib/mood/service";
+import { getMasteryOverview } from "@/lib/mastery/service";
+import { MasteryPreview } from "@/components/progress/mastery-preview";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +45,10 @@ export default async function ProgressPage({
     sessionId: first(query.session),
   };
 
-  const data = await getProgressData(user.id, user.timezone || "UTC", filters);
+  const [data, masteryOverview] = await Promise.all([
+    getProgressData(user.id, user.timezone || "UTC", filters),
+    getMasteryOverview(user.id),
+  ]);
 
   await purgeExpiredMoodCheckins(user.id);
   const [moodSummary, moods] = await Promise.all([
@@ -101,6 +106,8 @@ export default async function ProgressPage({
         </div>
         <ProgressExportButtons filters={data.filters} />
       </div>
+
+      <MasteryPreview overview={masteryOverview} />
 
       <Card className="p-4">
         <form

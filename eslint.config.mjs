@@ -12,6 +12,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Python environments, public datasets, and generated ML evidence are not
+    // application JavaScript. Keep the authored .mjs capture script linted.
+    "ml/.venv/**",
+    "ml/.runtime/**",
+    "ml/data/**",
+    "ml/artifacts/**",
+    "ml/reports/**",
   ]),
   {
     // The React Compiler strictness rules (eslint-plugin-react-hooks v6) flag

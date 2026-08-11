@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll } from "vitest";
 
 beforeAll(() => {
-  process.env.QUIZ_TOKEN_SECRET = "test-secret-quiz-token-please-change-1234567890";
+  process.env.QUIZ_TOKEN_SECRET =
+    "test-secret-quiz-token-please-change-1234567890";
 });
 
 // Import after the secret is set (getKey reads it lazily, so order is flexible).
@@ -16,9 +17,40 @@ const key: QuizAnswerKey = {
   quizInstanceId: "qi_1",
   userId: "user_1",
   materialId: "mat_1",
+  mode: "QUICK",
   questionCount: 3,
-  correctAnswers: [0, 2, 1],
-  explanations: ["a", null, "c"],
+  questions: [
+    {
+      id: 0,
+      question: "Question one?",
+      options: ["A", "B", "C", "D"],
+      correctAnswer: 0,
+      explanation: "a",
+      componentId: "kc_1",
+      componentName: "Concept one",
+      difficulty: "EASY",
+    },
+    {
+      id: 1,
+      question: "Question two?",
+      options: ["A", "B", "C", "D"],
+      correctAnswer: 2,
+      explanation: null,
+      componentId: "kc_1",
+      componentName: "Concept one",
+      difficulty: "MEDIUM",
+    },
+    {
+      id: 2,
+      question: "Question three?",
+      options: ["A", "B", "C", "D"],
+      correctAnswer: 1,
+      explanation: "c",
+      componentId: "kc_2",
+      componentName: "Concept two",
+      difficulty: "HARD",
+    },
+  ],
   modelId: "google/gemma-3-27b-it:free",
   generationVersion: "1",
 };
@@ -28,16 +60,23 @@ describe("quiz token", () => {
     const token = await encryptQuizToken(key);
     expect(typeof token).toBe("string");
     const decoded = await decryptQuizToken(token);
-    expect(decoded.correctAnswers).toEqual([0, 2, 1]);
+    expect(decoded.questions.map((question) => question.correctAnswer)).toEqual(
+      [0, 2, 1],
+    );
     expect(decoded.userId).toBe("user_1");
     expect(decoded.materialId).toBe("mat_1");
     expect(decoded.questionCount).toBe(3);
+    expect(decoded.questions.map((question) => question.difficulty)).toEqual([
+      "EASY",
+      "MEDIUM",
+      "HARD",
+    ]);
   });
 
   it("does not expose answers in plaintext", async () => {
     const token = await encryptQuizToken(key);
     // The correct-answer sequence must not be readable from the token string.
-    expect(token).not.toContain("correctAnswers");
+    expect(token).not.toContain("Question one");
   });
 
   it("rejects a tampered token", async () => {

@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["onnxruntime-node"],
+  outputFileTracingIncludes: {
+    "/*": ["./ml/artifacts/champion/**/*"],
+  },
   // Repo root holds planning docs + pnpm-workspace.yaml; pin Turbopack root to
   // this app dir to silence the inferred-workspace-root warning.
   turbopack: {

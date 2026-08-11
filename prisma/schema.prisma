@@ -106,6 +106,34 @@ enum EventType {
   PERFECT_DAY
 }
 
+enum KnowledgeComponentStatus {
+  PROPOSED
+  CONFIRMED
+  ARCHIVED
+}
+
+enum KnowledgeComponentOrigin {
+  AI
+  MANUAL
+}
+
+enum QuizMode {
+  QUICK
+  STANDARD
+}
+
+enum QuizDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum MasteryModelSource {
+  BKT
+  DEEP
+  BKT_FALLBACK
+}
+
 model User {
   id          String   @id @default(cuid())
   clerkId     String   @unique
@@ -115,22 +143,27 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  subjects          Subject[]
-  topics            Topic[]
-  materials         Material[]
-  materialChunks    MaterialChunk[]
-  summaries         Summary[]
-  quizCompletions   QuizCompletion[]
-  scheduledSessions ScheduledSession[]
-  studySessions     StudySession[]
-  moodCheckins      MoodCheckin[]
-  gamification      GamificationProfile?
-  userTrophies      UserTrophy[]
-  activityEvents    ActivityEvent[]
-  sessionActivities SessionActivity[]
-  publicProfile     PublicProfile?
-  iotDevices        IoTDevice[]
-  iotPairingCodes   IoTDevicePairingCode[]
+  subjects                    Subject[]
+  topics                      Topic[]
+  materials                   Material[]
+  materialChunks              MaterialChunk[]
+  summaries                   Summary[]
+  quizCompletions             QuizCompletion[]
+  scheduledSessions           ScheduledSession[]
+  studySessions               StudySession[]
+  moodCheckins                MoodCheckin[]
+  gamification                GamificationProfile?
+  userTrophies                UserTrophy[]
+  activityEvents              ActivityEvent[]
+  sessionActivities           SessionActivity[]
+  publicProfile               PublicProfile?
+  iotDevices                  IoTDevice[]
+  iotPairingCodes             IoTDevicePairingCode[]
+  knowledgeComponents         KnowledgeComponent[]
+  materialKnowledgeComponents MaterialKnowledgeComponent[]
+  quizQuestionAttempts        QuizQuestionAttempt[]
+  conceptMastery              StudentConceptMastery[]
+  masterySnapshots            MasterySnapshot[]
 }
 
 model Subject {
@@ -161,10 +194,11 @@ model Topic {
   archivedAt DateTime?
   createdAt  DateTime  @default(now())
 
-  materials         Material[]
-  quizCompletions   QuizCompletion[]
-  scheduledSessions ScheduledSession[]
-  studySessions     StudySession[]
+  materials           Material[]
+  quizCompletions     QuizCompletion[]
+  scheduledSessions   ScheduledSession[]
+  studySessions       StudySession[]
+  knowledgeComponents KnowledgeComponent[]
 
   @@index([subjectId])
   @@index([userId])
@@ -194,9 +228,10 @@ model Material {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
-  summaries       Summary[]
-  quizCompletions QuizCompletion[]
-  chunks          MaterialChunk[]
+  summaries           Summary[]
+  quizCompletions     QuizCompletion[]
+  chunks              MaterialChunk[]
+  knowledgeComponents MaterialKnowledgeComponent[]
 
   @@index([userId, createdAt])
   @@index([subjectId])
@@ -240,7 +275,8 @@ model Summary {
 }
 
 model QuizCompletion {
-  // NON-CONTENT metadata only. Never store questions/answers/responses.
+  // Attempt header. New completions have private question-level child rows;
+  // pre-mastery completions remain valid summary-only history.
   id                String    @id @default(cuid())
   userId            String
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -253,13 +289,122 @@ model QuizCompletion {
   questionCount     Int
   correctCount      Int
   durationSec       Int
+  mode              QuizMode  @default(QUICK)
   modelId           String
   generationVersion String
   idempotencyKey    String    @unique
+  materialTitle     String?
+  subjectName       String?
+  topicName         String?
   completedAt       DateTime  @default(now())
+
+  questionAttempts QuizQuestionAttempt[]
+  masterySnapshots MasterySnapshot[]
 
   @@index([userId, completedAt])
   @@index([topicId, completedAt])
+}
+
+model KnowledgeComponent {
+  id             String                   @id @default(cuid())
+  userId         String
+  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topicId        String
+  topic          Topic                    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  name           String
+  normalizedName String
+  description    String                   @db.Text
+  status         KnowledgeComponentStatus @default(PROPOSED)
+  origin         KnowledgeComponentOrigin @default(AI)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  materials        MaterialKnowledgeComponent[]
+  questionAttempts QuizQuestionAttempt[]
+  mastery          StudentConceptMastery[]
+  snapshots        MasterySnapshot[]
+
+  @@unique([topicId, normalizedName])
+  @@index([userId, status])
+  @@index([topicId, status])
+}
+
+model MaterialKnowledgeComponent {
+  id                   String             @id @default(cuid())
+  userId               String
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  materialId           String
+  material             Material           @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  knowledgeComponentId String
+  knowledgeComponent   KnowledgeComponent @relation(fields: [knowledgeComponentId], references: [id], onDelete: Cascade)
+  evidence             Json?
+  createdAt            DateTime           @default(now())
+
+  @@unique([materialId, knowledgeComponentId])
+  @@index([userId])
+  @@index([knowledgeComponentId])
+}
+
+model QuizQuestionAttempt {
+  id                   String              @id @default(cuid())
+  userId               String
+  user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizCompletionId     String
+  quizCompletion       QuizCompletion      @relation(fields: [quizCompletionId], references: [id], onDelete: Cascade)
+  knowledgeComponentId String?
+  knowledgeComponent   KnowledgeComponent? @relation(fields: [knowledgeComponentId], references: [id], onDelete: SetNull)
+  componentName        String?
+  difficulty           QuizDifficulty      @default(MEDIUM)
+  position             Int
+  question             String              @db.Text
+  options              Json
+  chosenOption         Int?
+  correctOption        Int
+  isCorrect            Boolean
+  explanation          String?             @db.Text
+  responseTimeMs       Int?
+  createdAt            DateTime            @default(now())
+
+  @@unique([quizCompletionId, position])
+  @@index([userId, createdAt])
+  @@index([knowledgeComponentId, createdAt])
+}
+
+model StudentConceptMastery {
+  id                     String             @id @default(cuid())
+  userId                 String
+  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  knowledgeComponentId   String
+  knowledgeComponent     KnowledgeComponent @relation(fields: [knowledgeComponentId], references: [id], onDelete: Cascade)
+  masteryProbability     Float
+  nextCorrectProbability Float
+  evidenceCount          Int
+  source                 MasteryModelSource
+  modelVersion           String
+  updatedAt              DateTime           @updatedAt
+
+  @@unique([userId, knowledgeComponentId])
+  @@index([userId, updatedAt])
+}
+
+model MasterySnapshot {
+  id                     String             @id @default(cuid())
+  userId                 String
+  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  knowledgeComponentId   String
+  knowledgeComponent     KnowledgeComponent @relation(fields: [knowledgeComponentId], references: [id], onDelete: Cascade)
+  quizCompletionId       String
+  quizCompletion         QuizCompletion     @relation(fields: [quizCompletionId], references: [id], onDelete: Cascade)
+  masteryProbability     Float
+  nextCorrectProbability Float
+  evidenceCount          Int
+  source                 MasteryModelSource
+  modelVersion           String
+  createdAt              DateTime           @default(now())
+
+  @@unique([quizCompletionId, knowledgeComponentId])
+  @@index([userId, createdAt])
+  @@index([knowledgeComponentId, createdAt])
 }
 
 model ScheduledSession {

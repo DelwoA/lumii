@@ -1,0 +1,26 @@
+seed: 20260811
+dataset:
+  processed_path: data/processed/ednet_single_skill.parquet
+features:
+  sequence_length: 100
+  minimum_history: 3
+model:
+  hidden_size: 64
+  layers: 3
+  heads: 2
+  dropout: 0.2128116054566673
+  batch_size: 256
+  learning_rate: 0.0003655278298048747
+  weight_decay: 0.000020864369230714012
+  epochs: 12
+  patience: 3
+  max_sequences_per_split: 1500000
+selection:
+  minimum_test_examples: 10000
+  minimum_accuracy: 0.72
+  minimum_roc_auc: 0.78
+  maximum_ece: 0.03
+  require_log_loss_improvement: true
+artifacts:
+  candidate_directory: artifacts/candidates/transfer-attention-v2
+  report_directory: reports/generated/transfer-attention-v2
