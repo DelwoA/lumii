@@ -480,7 +480,6 @@ export function MaterialCreator({
                 <SelectTrigger
                   id="creator-subject"
                   className="w-full"
-                  aria-invalid={!subjectId}
                 >
                   <SelectValue placeholder="Choose a subject" />
                 </SelectTrigger>
