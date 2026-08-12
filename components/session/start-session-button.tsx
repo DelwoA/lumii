@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -33,6 +34,7 @@ export function StartSessionButton() {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<SessionSetupOption[]>([]);
   const [loadedOptions, setLoadedOptions] = useState(false);
+  const [loadingOptions, setLoadingOptions] = useState(false);
   const [title, setTitle] = useState("Focused study");
   const [goal, setGoal] = useState("");
   const [minutes, setMinutes] = useState(25);
@@ -44,11 +46,14 @@ export function StartSessionButton() {
   async function showSetup() {
     setOpen(true);
     if (!loadedOptions) {
+      setLoadingOptions(true);
       try {
         setOptions(await getSessionSetupOptionsAction());
         setLoadedOptions(true);
       } catch {
         toast.error("Could not load subjects. You can still start a session.");
+      } finally {
+        setLoadingOptions(false);
       }
     }
   }
@@ -105,60 +110,74 @@ export function StartSessionButton() {
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 maxLength={120}
-                autoFocus
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="session-subject">Subject (optional)</Label>
-                <Select
-                  value={subjectId}
-                  items={Object.fromEntries([
-                    [NONE, "No subject"],
-                    ...options.map((subject) => [subject.id, subject.name]),
-                  ])}
-                  onValueChange={(value) => {
-                    setSubjectId(value ?? NONE);
-                    setTopicId(NONE);
-                  }}
-                >
-                  <SelectTrigger id="session-subject" className="w-full">
-                    <SelectValue placeholder="No subject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>No subject</SelectItem>
-                    {options.map((subject) => (
-                      <SelectItem key={subject.id} value={subject.id}>
-                        {subject.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="session-topic">Topic (optional)</Label>
-                <Select
-                  value={topicId}
-                  items={Object.fromEntries([
-                    [NONE, "No topic"],
-                    ...topics.map((topic) => [topic.id, topic.name]),
-                  ])}
-                  disabled={subjectId === NONE}
-                  onValueChange={(value) => setTopicId(value ?? NONE)}
-                >
-                  <SelectTrigger id="session-topic" className="w-full">
-                    <SelectValue placeholder="No topic" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>No topic</SelectItem>
-                    {topics.map((topic) => (
-                      <SelectItem key={topic.id} value={topic.id}>
-                        {topic.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {loadingOptions ? (
+                <>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-9 w-full rounded-md" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-9 w-full rounded-md" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="session-subject">Subject (optional)</Label>
+                    <Select
+                      value={subjectId}
+                      items={Object.fromEntries([
+                        [NONE, "No subject"],
+                        ...options.map((subject) => [subject.id, subject.name]),
+                      ])}
+                      onValueChange={(value) => {
+                        setSubjectId(value ?? NONE);
+                        setTopicId(NONE);
+                      }}
+                    >
+                      <SelectTrigger id="session-subject" className="w-full">
+                        <SelectValue placeholder="No subject" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>No subject</SelectItem>
+                        {options.map((subject) => (
+                          <SelectItem key={subject.id} value={subject.id}>
+                            {subject.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="session-topic">Topic (optional)</Label>
+                    <Select
+                      value={topicId}
+                      items={Object.fromEntries([
+                        [NONE, "No topic"],
+                        ...topics.map((topic) => [topic.id, topic.name]),
+                      ])}
+                      disabled={subjectId === NONE}
+                      onValueChange={(value) => setTopicId(value ?? NONE)}
+                    >
+                      <SelectTrigger id="session-topic" className="w-full">
+                        <SelectValue placeholder="No topic" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>No topic</SelectItem>
+                        {topics.map((topic) => (
+                          <SelectItem key={topic.id} value={topic.id}>
+                            {topic.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="session-goal">Goal (optional)</Label>

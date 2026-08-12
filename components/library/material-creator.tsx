@@ -1,15 +1,13 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Check,
   FileAudio,
   FileText,
   Image as ImageIcon,
   LoaderCircle,
   PenLine,
-  Plus,
   RefreshCw,
   UploadCloud,
   X,
@@ -29,6 +27,14 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   abortUpload,
   cancelPendingUpload,
   completeUpload,
@@ -38,10 +44,7 @@ import {
   startMultipartUpload,
   transcribeAudioAction,
 } from "@/app/(app)/materials/actions";
-import {
-  createOrganizerSubject,
-  createOrganizerTopic,
-} from "@/app/(app)/subjects/actions";
+import { createOrganizerSubject } from "@/app/(app)/subjects/actions";
 import {
   AUDIO_SINGLE_CALL_MAX_BYTES,
   AUDIO_SINGLE_CALL_MAX_SEC,
@@ -62,14 +65,6 @@ type DropState = "idle" | "active" | "accepted" | "rejected";
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
-}
-
-function titleFromFilename(name: string) {
-  return name
-    .replace(/\.[^.]+$/, "")
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function acceptedType(type: string): type is UploadContentType {
@@ -109,11 +104,9 @@ export function MaterialCreator({
   const abortRef = useRef<AbortController | null>(null);
   const [subjects, setSubjects] = useState(initialSubjects);
   const [subjectId, setSubjectId] = useState(initialSubjectId ?? "");
-  const [topicId, setTopicId] = useState(initialTopicId ?? "");
+  const [contextTopicId, setContextTopicId] = useState(initialTopicId ?? "");
   const [mode, setMode] = useState<"file" | "note">("file");
   const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState("");
-  const [titleEdited, setTitleEdited] = useState(false);
   const [note, setNote] = useState("");
   const [dropState, setDropState] = useState<DropState>("idle");
   const [busy, setBusy] = useState(false);
@@ -121,14 +114,8 @@ export function MaterialCreator({
   const [uploadCancelable, setUploadCancelable] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [newSubject, setNewSubject] = useState("");
-  const [newTopic, setNewTopic] = useState("");
+  const [subjectDialogOpen, setSubjectDialogOpen] = useState(false);
   const [creatingSubject, setCreatingSubject] = useState(false);
-  const [creatingTopic, setCreatingTopic] = useState(false);
-
-  const topics = useMemo(
-    () => subjects.find((subject) => subject.id === subjectId)?.topics ?? [],
-    [subjects, subjectId],
-  );
 
   function chooseFile(next: File | null) {
     if (!next) return;
@@ -143,7 +130,6 @@ export function MaterialCreator({
     }
     setFile(next);
     setDropState("accepted");
-    if (!titleEdited) setTitle(titleFromFilename(next.name));
   }
 
   async function addSubject() {
@@ -155,30 +141,10 @@ export function MaterialCreator({
     const subject = { id: result.id, name: result.name, topics: [] };
     setSubjects((current) => [...current, subject]);
     setSubjectId(subject.id);
-    setTopicId("");
+    setContextTopicId("");
     setNewSubject("");
+    setSubjectDialogOpen(false);
     toast.success("Subject created and selected");
-  }
-
-  async function addTopic() {
-    if (!subjectId || !newTopic.trim()) return;
-    setCreatingTopic(true);
-    const result = await createOrganizerTopic({ subjectId, name: newTopic });
-    setCreatingTopic(false);
-    if (!result.ok) return toast.error(result.error);
-    setSubjects((current) =>
-      current.map((subject) =>
-        subject.id === subjectId
-          ? {
-              ...subject,
-              topics: [...subject.topics, { id: result.id, name: result.name }],
-            }
-          : subject,
-      ),
-    );
-    setTopicId(result.id);
-    setNewTopic("");
-    toast.success("Topic created and selected");
   }
 
   async function validateFile(next: File) {
@@ -209,9 +175,8 @@ export function MaterialCreator({
     abortRef.current = controller;
     setUploadCancelable(true);
     const payload = {
-      title: title.trim(),
       subjectId,
-      topicId,
+      topicId: contextTopicId || undefined,
       fileName: next.name,
       contentType: next.type as UploadContentType,
       sizeBytes: next.size,
@@ -266,9 +231,7 @@ export function MaterialCreator({
   }
 
   async function save() {
-    if (!title.trim()) return toast.error("Add a title");
     if (!subjectId) return toast.error("Choose a subject");
-    if (!topicId) return toast.error("Choose a topic");
     setBusy(true);
     setProgress(null);
     try {
@@ -276,9 +239,8 @@ export function MaterialCreator({
       if (mode === "note") {
         if (!note.trim()) throw new Error("Write or paste your note");
         const form = new FormData();
-        form.set("title", title);
         form.set("subjectId", subjectId);
-        form.set("topicId", topicId);
+        if (contextTopicId) form.set("topicId", contextTopicId);
         form.set("text", note);
         const result = await createNote(ACTION_INITIAL, form);
         if (!result.ok) throw new Error(result.error);
@@ -318,9 +280,6 @@ export function MaterialCreator({
     abortRef.current.abort();
   }
 
-  const selectedSubject = subjects.find((subject) => subject.id === subjectId);
-  const selectedTopic = topics.find((topic) => topic.id === topicId);
-
   return (
     <div className="space-y-6">
       <header>
@@ -335,7 +294,8 @@ export function MaterialCreator({
           Add Material
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Add one file or typed note, then organize it for concept mapping.
+          Add one file or typed note. LUMII will name it and organize the topic
+          with you.
         </p>
       </header>
 
@@ -343,7 +303,7 @@ export function MaterialCreator({
         className="bg-card grid grid-cols-4 overflow-hidden rounded-xl border"
         aria-label="Material setup steps"
       >
-        {["Add Material", "Organize", "Map Concepts", "Quiz"].map(
+        {["Add Material", "AI Organizes", "Review", "Quick Quiz"].map(
           (step, index) => (
             <li
               key={step}
@@ -387,25 +347,6 @@ export function MaterialCreator({
           </div>
 
           <div className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="material-title">Title</Label>
-              <Input
-                id="material-title"
-                value={title}
-                onChange={(event) => {
-                  setTitle(event.target.value);
-                  setTitleEdited(true);
-                }}
-                maxLength={120}
-                placeholder={
-                  mode === "file"
-                    ? "Derived from the filename"
-                    : "e.g. Week 3 revision notes"
-                }
-                disabled={busy}
-              />
-            </div>
-
             {mode === "file" ? (
               <div className="space-y-3">
                 <Label htmlFor="material-file">File</Label>
@@ -535,14 +476,14 @@ export function MaterialCreator({
         <Card className="p-5 sm:p-6 lg:sticky lg:top-20">
           <div className="mb-5">
             <p className="text-primary text-xs font-semibold tracking-[0.14em] uppercase">
-              Required organization
+              One quick choice
             </p>
             <h2 className="mt-1 text-lg font-semibold">
-              Where does this belong?
+              Which subject is this for?
             </h2>
             <p className="text-muted-foreground mt-1 text-sm">
-              Concepts and quizzes use the selected topic as their learning
-              context.
+              LUMII will suggest the topic and quiz concepts after reading the
+              material.
             </p>
           </div>
 
@@ -556,7 +497,7 @@ export function MaterialCreator({
                 )}
                 onValueChange={(value) => {
                   setSubjectId(value ?? "");
-                  setTopicId("");
+                  setContextTopicId("");
                 }}
                 disabled={busy}
               >
@@ -575,106 +516,23 @@ export function MaterialCreator({
                   ))}
                 </SelectContent>
               </Select>
-              <div className="flex gap-2">
-                <Input
-                  value={newSubject}
-                  onChange={(event) => setNewSubject(event.target.value)}
-                  placeholder="New subject name"
-                  maxLength={60}
-                  disabled={busy || creatingSubject}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  aria-label="Create subject"
-                  onClick={addSubject}
-                  disabled={!newSubject.trim() || busy || creatingSubject}
-                >
-                  {creatingSubject ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                  ) : (
-                    <Plus className="size-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="creator-topic">Topic</Label>
-              <Select
-                value={topicId || null}
-                items={Object.fromEntries(
-                  topics.map((topic) => [topic.id, topic.name]),
-                )}
-                onValueChange={(value) => setTopicId(value ?? "")}
-                disabled={!subjectId || busy}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => setSubjectDialogOpen(true)}
+                disabled={busy}
               >
-                <SelectTrigger
-                  id="creator-topic"
-                  className="w-full"
-                  aria-invalid={Boolean(subjectId && !topicId)}
-                >
-                  <SelectValue
-                    placeholder={
-                      subjectId ? "Choose a topic" : "Choose a subject first"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {topics.map((topic) => (
-                    <SelectItem key={topic.id} value={topic.id}>
-                      {topic.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex gap-2">
-                <Input
-                  value={newTopic}
-                  onChange={(event) => setNewTopic(event.target.value)}
-                  placeholder="New topic name"
-                  maxLength={60}
-                  disabled={!subjectId || busy || creatingTopic}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  aria-label="Create topic"
-                  onClick={addTopic}
-                  disabled={
-                    !subjectId || !newTopic.trim() || busy || creatingTopic
-                  }
-                >
-                  {creatingTopic ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                  ) : (
-                    <Plus className="size-4" />
-                  )}
-                </Button>
-              </div>
+                Create New Subject
+              </Button>
             </div>
-
-            {selectedSubject && selectedTopic ? (
-              <div className="bg-secondary/45 flex gap-2 rounded-lg p-3 text-sm">
-                <Check className="text-primary mt-0.5 size-4 shrink-0" />
-                <span className="min-w-0 truncate">
-                  {selectedSubject.name} › {selectedTopic.name}
-                </span>
-              </div>
-            ) : null}
 
             <div className="flex flex-col gap-2 pt-2">
               <Button
                 type="button"
                 onClick={save}
                 disabled={
-                  busy ||
-                  !subjectId ||
-                  !topicId ||
-                  !title.trim() ||
-                  (mode === "file" ? !file : !note.trim())
+                  busy || !subjectId || (mode === "file" ? !file : !note.trim())
                 }
                 className="w-full"
               >
@@ -687,7 +545,7 @@ export function MaterialCreator({
                       : mode === "note"
                         ? "Saving…"
                         : "Uploading…"
-                  : "Continue to Map Concepts"}
+                  : "Add & Analyze"}
               </Button>
               {busy && uploadCancelable ? (
                 <Button
@@ -703,6 +561,56 @@ export function MaterialCreator({
           </div>
         </Card>
       </div>
+
+      <Dialog open={subjectDialogOpen} onOpenChange={setSubjectDialogOpen}>
+        <DialogContent>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void addSubject();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Create a Subject</DialogTitle>
+              <DialogDescription>
+                Use the course or broad area you are studying. Topics will be
+                suggested from each material.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 py-4">
+              <Label htmlFor="new-material-subject">Subject Name</Label>
+              <Input
+                id="new-material-subject"
+                value={newSubject}
+                onChange={(event) => setNewSubject(event.target.value)}
+                placeholder="e.g. Physics"
+                maxLength={60}
+                disabled={creatingSubject}
+                autoComplete="off"
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSubjectDialogOpen(false)}
+                disabled={creatingSubject}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={!newSubject.trim() || creatingSubject}
+              >
+                {creatingSubject ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : null}
+                {creatingSubject ? "Creating…" : "Create & Select"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

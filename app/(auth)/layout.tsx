@@ -8,8 +8,6 @@
 import Link from "next/link";
 import { LumenSpark } from "@/components/lumen-spark";
 
-export const dynamic = "force-dynamic";
-
 // Clerk context is provided by the root layout; this layout only frames the
 // Clerk-hosted sign-in / sign-up cards.
 export default function AuthLayout({

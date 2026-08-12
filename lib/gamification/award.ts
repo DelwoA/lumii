@@ -23,6 +23,7 @@ import type { EventType, Rank } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { rankForXp } from "./ranks";
 import { applyDailyCap } from "./xp";
+import { revalidateTag } from "next/cache";
 
 export interface AwardResult {
   xpAwarded: number;
@@ -130,7 +131,9 @@ export async function awardXp(opts: {
     });
 
   try {
-    return await runAward();
+    const result = await runAward();
+    revalidateTag(`user:${userId}:gamification`, "max");
+    return result;
   } catch (e) {
     if (
       !(e instanceof Prisma.PrismaClientKnownRequestError) ||
@@ -147,7 +150,11 @@ export async function awardXp(opts: {
       where: { idempotencyKey },
       select: { id: true },
     });
-    if (!existing) return runAward();
+    if (!existing) {
+      const result = await runAward();
+      revalidateTag(`user:${userId}:gamification`, "max");
+      return result;
+    }
     const profile = await prisma.gamificationProfile.findUnique({
       where: { userId },
     });

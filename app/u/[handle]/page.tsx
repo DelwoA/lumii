@@ -17,8 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { LumenSpark } from "@/components/lumen-spark";
 import { TrophyIcon } from "@/components/trophy-icon";
 
-export const dynamic = "force-dynamic";
-
 function titleCase(s: string): string {
   return s.charAt(0) + s.slice(1).toLowerCase();
 }
@@ -33,7 +31,8 @@ export async function generateMetadata({
   if (!profile) return { title: "Profile not found · LUMII" };
   return {
     title: `${profile.displayName} · LUMII`,
-    description: profile.bio ?? `${profile.displayName}'s study achievements on LUMII.`,
+    description:
+      profile.bio ?? `${profile.displayName}'s study achievements on LUMII.`,
   };
 }
 
@@ -108,7 +107,10 @@ export default async function PublicProfilePage({
         </Card>
 
         <p className="text-muted-foreground text-center text-xs">
-          <Link href="/" className="hover:text-foreground inline-flex items-center gap-1">
+          <Link
+            href="/"
+            className="hover:text-foreground inline-flex items-center gap-1"
+          >
             <LumenSpark className="size-3.5" />
             Powered by LUMII
           </Link>

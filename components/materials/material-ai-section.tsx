@@ -29,6 +29,7 @@ export function MaterialAISection({
   materialId,
   materialTitle,
   summaryMarkdown,
+  subjectName,
   topicName,
   concepts,
   defaultTab,
@@ -38,6 +39,7 @@ export function MaterialAISection({
   materialId: string;
   materialTitle: string;
   summaryMarkdown: string | null;
+  subjectName: string | null;
   topicName: string | null;
   concepts: MaterialConcept[];
   defaultTab: "summary" | "quiz" | "chat";
@@ -46,6 +48,10 @@ export function MaterialAISection({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [activeTab, setActiveTab] = useState(defaultTab);
+  const [currentTopicName, setCurrentTopicName] = useState(topicName);
+  const [currentConcepts, setCurrentConcepts] = useState(concepts);
+  const [autoStartQuizKey, setAutoStartQuizKey] = useState(0);
   const celebrate = useCelebrationStore((s) => s.celebrate);
 
   async function onGenerateSummary() {
@@ -69,11 +75,33 @@ export function MaterialAISection({
     <div className="space-y-5">
       <ConceptSetup
         materialId={materialId}
-        topicName={topicName}
-        initialConcepts={concepts}
+        subjectName={subjectName}
+        topicName={currentTopicName}
+        initialConcepts={currentConcepts}
         autoFocus={autoFocusConcepts}
+        onConfirmed={({ topic, concepts: confirmedConcepts }) => {
+          setCurrentTopicName(topic.name);
+          setCurrentConcepts(confirmedConcepts);
+          setActiveTab("quiz");
+          setAutoStartQuizKey((key) => key + 1);
+          const url = new URL(window.location.href);
+          url.searchParams.delete("setup");
+          url.searchParams.set("tab", "quiz");
+          window.history.replaceState(null, "", url);
+        }}
       />
-      <Tabs defaultValue={defaultTab} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          const tab = value as "summary" | "quiz" | "chat";
+          setActiveTab(tab);
+          const url = new URL(window.location.href);
+          url.searchParams.delete("setup");
+          url.searchParams.set("tab", tab);
+          window.history.replaceState(null, "", url);
+        }}
+        className="w-full"
+      >
         <TabsList>
           <TabsTrigger value="summary">Summary</TabsTrigger>
           <TabsTrigger value="quiz">Quiz</TabsTrigger>
@@ -125,10 +153,11 @@ export function MaterialAISection({
           <QuizRunner
             materialId={materialId}
             materialTitle={materialTitle}
-            concepts={concepts.filter(
+            concepts={currentConcepts.filter(
               (concept) => concept.status === "CONFIRMED",
             )}
             initialFocusComponentId={initialFocusComponentId}
+            autoStartKey={autoStartQuizKey}
           />
         </TabsContent>
 

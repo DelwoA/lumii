@@ -43,12 +43,14 @@ export function MaterialOrganization({
   );
   const [subjectId, setSubjectId] = useState(initialSubjectId ?? "");
   const [topicId, setTopicId] = useState(initialTopicId ?? "");
+  const [savedSubjectId, setSavedSubjectId] = useState(initialSubjectId ?? "");
+  const [savedTopicId, setSavedTopicId] = useState(initialTopicId ?? "");
   const topics = useMemo(
     () => subjects.find((subject) => subject.id === subjectId)?.topics ?? [],
     [subjects, subjectId],
   );
-  const subject = subjects.find((item) => item.id === initialSubjectId);
-  const topic = subject?.topics.find((item) => item.id === initialTopicId);
+  const subject = subjects.find((item) => item.id === savedSubjectId);
+  const topic = subject?.topics.find((item) => item.id === savedTopicId);
 
   useEffect(() => {
     if (!autoFocus) return;
@@ -61,20 +63,17 @@ export function MaterialOrganization({
       const result = await updateMaterialOrganization({
         materialId,
         subjectId,
-        topicId,
+        topicId: topicId || undefined,
       });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
-      toast.success("Organization updated. Review the new concept map next.");
+      toast.success("Subject saved. LUMII can organize the topic next.");
+      setSavedSubjectId(subjectId);
+      setSavedTopicId(topicId);
       setEditing(false);
-      router.refresh();
-      window.setTimeout(() => {
-        const target = document.getElementById("concept-setup");
-        target?.scrollIntoView({ behavior: "smooth", block: "center" });
-        target?.focus({ preventScroll: true });
-      }, 100);
+      router.replace(`/library/materials/${materialId}?setup=concepts`);
     });
   }
 
@@ -94,7 +93,9 @@ export function MaterialOrganization({
             <p className="text-muted-foreground mt-1 text-sm">
               {subject && topic
                 ? `${subject.name} › ${topic.name}`
-                : "Choose a subject and topic to continue."}
+                : subject
+                  ? `${subject.name} · Topic not confirmed yet`
+                  : "Choose a subject to continue."}
             </p>
           </div>
         </div>
@@ -142,7 +143,7 @@ export function MaterialOrganization({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="organization-topic">Topic</Label>
+            <Label htmlFor="organization-topic">Topic (optional)</Label>
             <Select
               value={topicId || null}
               items={Object.fromEntries(
@@ -151,14 +152,12 @@ export function MaterialOrganization({
               onValueChange={(value) => setTopicId(value ?? "")}
               disabled={!subjectId || pending}
             >
-              <SelectTrigger
-                id="organization-topic"
-                className="w-full"
-                aria-invalid={Boolean(subjectId && !topicId)}
-              >
+              <SelectTrigger id="organization-topic" className="w-full">
                 <SelectValue
                   placeholder={
-                    subjectId ? "Choose a topic" : "Choose a subject first"
+                    subjectId
+                      ? "Let LUMII suggest one"
+                      : "Choose a subject first"
                   }
                 />
               </SelectTrigger>
@@ -189,10 +188,10 @@ export function MaterialOrganization({
             <Button
               type="button"
               onClick={save}
-              disabled={pending || !subjectId || !topicId}
+              disabled={pending || !subjectId}
             >
               <Check className="size-4" />{" "}
-              {pending ? "Saving…" : "Save organization"}
+              {pending ? "Saving…" : "Save & Analyze"}
             </Button>
           </div>
         </div>

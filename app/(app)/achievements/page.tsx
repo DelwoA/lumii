@@ -8,14 +8,12 @@
 // =============================================================================
 import { Crown, Flame, Lock, Trophy } from "lucide-react";
 import { requireDbUser } from "@/lib/auth";
-import { getAchievementsData } from "@/lib/gamification/service";
+import { getCachedAchievementsData } from "@/lib/cache/app-data";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { TrophyIcon } from "@/components/trophy-icon";
 import { cn } from "@/lib/utils";
-
-export const dynamic = "force-dynamic";
 
 function titleCase(rank: string): string {
   return rank.charAt(0) + rank.slice(1).toLowerCase();
@@ -23,7 +21,7 @@ function titleCase(rank: string): string {
 
 export default async function AchievementsPage() {
   const user = await requireDbUser();
-  const data = await getAchievementsData(user.id);
+  const data = await getCachedAchievementsData(user.id);
   const { progress } = data;
   const xpToNext =
     progress.next && progress.tierSpan !== null
@@ -61,7 +59,9 @@ export default async function AchievementsPage() {
 
         <Card className="p-5">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground text-sm">Current streak</span>
+            <span className="text-muted-foreground text-sm">
+              Current streak
+            </span>
             <Flame className="text-primary size-4" />
           </div>
           <p className="mt-2 text-2xl font-semibold tabular-nums">
@@ -122,7 +122,9 @@ export default async function AchievementsPage() {
                     })}
                   </p>
                 ) : t.xp > 0 ? (
-                  <p className="text-muted-foreground mt-1 text-xs">+{t.xp} XP</p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    +{t.xp} XP
+                  </p>
                 ) : null}
               </div>
             </Card>

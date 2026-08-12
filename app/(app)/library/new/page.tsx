@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requireDbUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getCachedSubjectTree } from "@/lib/cache/app-data";
 import { MaterialCreator } from "@/components/library/material-creator";
-
-export const dynamic = "force-dynamic";
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -17,19 +15,7 @@ export default async function NewMaterialPage({
 }) {
   const user = await requireDbUser();
   const query = await searchParams;
-  const subjects = await prisma.subject.findMany({
-    where: { userId: user.id, archivedAt: null },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      topics: {
-        where: { archivedAt: null },
-        orderBy: { name: "asc" },
-        select: { id: true, name: true },
-      },
-    },
-  });
+  const subjects = await getCachedSubjectTree(user.id);
   const requestedSubject = first(query.subject);
   const selectedSubject = subjects.find(
     (subject) => subject.id === requestedSubject,

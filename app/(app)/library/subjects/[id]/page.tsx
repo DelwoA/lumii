@@ -8,8 +8,6 @@ import { Card } from "@/components/ui/card";
 import { TopicCreateDialog } from "@/components/subjects/topic-create-dialog";
 import { DeleteMenu } from "@/components/subjects/delete-menu";
 
-export const dynamic = "force-dynamic";
-
 export default async function LibrarySubjectPage({
   params,
 }: {
@@ -161,7 +159,7 @@ export default async function LibrarySubjectPage({
               {subject.materials.map((material) => (
                 <li key={material.id}>
                   <Link
-                    href={`/library/materials/${material.id}?setup=organization`}
+                    href={`/library/materials/${material.id}?setup=concepts`}
                     className="hover:bg-muted/50 flex min-h-12 items-center gap-3 px-4 py-3 text-sm"
                   >
                     <FileText className="text-muted-foreground size-4" />
@@ -169,7 +167,7 @@ export default async function LibrarySubjectPage({
                       {material.title}
                     </span>
                     <span className="text-primary font-medium">
-                      Choose topic →
+                      Analyze material →
                     </span>
                   </Link>
                 </li>

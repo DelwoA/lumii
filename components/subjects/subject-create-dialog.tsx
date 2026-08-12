@@ -69,7 +69,6 @@ export function SubjectCreateDialog() {
                 id="subject-name"
                 name="name"
                 placeholder="e.g. Operating Systems"
-                autoFocus
                 maxLength={60}
                 required
               />

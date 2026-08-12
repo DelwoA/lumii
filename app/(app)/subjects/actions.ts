@@ -9,7 +9,7 @@
 //   Input is validated with the rules in lib/validations/subject.
 // =============================================================================
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { subjectInput, topicInput } from "@/lib/validations/subject";
@@ -18,6 +18,10 @@ import type { ActionState } from "@/lib/forms";
 const OK: ActionState = { ok: true };
 function fail(error: string): ActionState {
   return { ok: false, error };
+}
+
+function invalidateSubjects(userId: string) {
+  revalidateTag(`user:${userId}:subjects`, "max");
 }
 
 export type OrganizerActionResult =
@@ -41,6 +45,7 @@ export async function createOrganizerSubject(input: {
     select: { id: true, name: true },
   });
   revalidatePath("/library");
+  invalidateSubjects(user.id);
   return { ok: true, id: subject.id, name: subject.name };
 }
 
@@ -67,6 +72,7 @@ export async function createOrganizerTopic(input: {
   });
   revalidatePath("/library");
   revalidatePath(`/library/subjects/${subject.id}`);
+  invalidateSubjects(user.id);
   return { ok: true, id: topic.id, name: topic.name };
 }
 
@@ -86,6 +92,7 @@ export async function createSubject(
     data: { userId: user.id, name: parsed.data.name, color: parsed.data.color },
   });
   revalidatePath("/library");
+  invalidateSubjects(user.id);
   return OK;
 }
 
@@ -98,6 +105,7 @@ export async function archiveSubject(subjectId: string): Promise<ActionState> {
   });
   if (res.count === 0) return fail("Subject not found");
   revalidatePath("/library");
+  invalidateSubjects(user.id);
   return OK;
 }
 
@@ -116,6 +124,7 @@ export async function renameSubject(
   if (!result.count) return fail("Subject not found");
   revalidatePath("/library");
   revalidatePath(`/library/subjects/${subjectId}`);
+  invalidateSubjects(user.id);
   return OK;
 }
 
@@ -131,6 +140,7 @@ export async function deleteSubject(subjectId: string): Promise<ActionState> {
   });
   if (res.count === 0) return fail("Subject not found");
   revalidatePath("/library");
+  invalidateSubjects(user.id);
   return OK;
 }
 
@@ -155,6 +165,7 @@ export async function createTopic(
   });
   revalidatePath("/library");
   revalidatePath(`/library/subjects/${subjectId}`);
+  invalidateSubjects(user.id);
   return OK;
 }
 
@@ -171,6 +182,7 @@ export async function archiveTopic(topicId: string): Promise<ActionState> {
   });
   revalidatePath("/library");
   revalidatePath(`/library/subjects/${topic.subjectId}`);
+  invalidateSubjects(user.id);
   return OK;
 }
 
@@ -193,6 +205,7 @@ export async function renameTopic(
   });
   revalidatePath("/library");
   revalidatePath(`/library/subjects/${topic.subjectId}`);
+  invalidateSubjects(user.id);
   return OK;
 }
 
@@ -210,5 +223,6 @@ export async function deleteTopic(topicId: string): Promise<ActionState> {
   await prisma.topic.deleteMany({ where: { id: topicId, userId: user.id } });
   revalidatePath("/library");
   revalidatePath(`/library/subjects/${topic.subjectId}`);
+  invalidateSubjects(user.id);
   return OK;
 }

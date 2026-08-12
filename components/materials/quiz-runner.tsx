@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   BrainCircuit,
@@ -59,17 +60,20 @@ export function QuizRunner({
   materialTitle,
   concepts,
   initialFocusComponentId,
+  autoStartKey = 0,
 }: {
   materialId: string;
   materialTitle: string;
   concepts: MaterialConcept[];
   initialFocusComponentId?: string;
+  autoStartKey?: number;
 }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [token, setToken] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuizQuestionPublic[]>([]);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [result, setResult] = useState<Result | null>(null);
+  const [generatingCount, setGeneratingCount] = useState(5);
   const [focusComponentId, setFocusComponentId] = useState(() =>
     initialFocusComponentId &&
     concepts.some((concept) => concept.id === initialFocusComponentId)
@@ -79,6 +83,8 @@ export function QuizRunner({
   const startedAt = useRef(0);
   const responseTimes = useRef<Record<number, number>>({});
   const celebrate = useCelebrationStore((state) => state.celebrate);
+  const router = useRouter();
+  const lastAutoStartKey = useRef(0);
 
   useEffect(() => {
     if (phase !== "taking" && phase !== "submitting") return;
@@ -90,26 +96,44 @@ export function QuizRunner({
     return () => window.removeEventListener("beforeunload", handler);
   }, [phase]);
 
-  async function onGenerate(mode: QuizMode = "QUICK") {
-    setPhase("generating");
-    setResult(null);
-    setAnswers({});
-    responseTimes.current = {};
-    const response = await startQuiz({
-      materialId,
-      mode,
-      componentId: focusComponentId === "mixed" ? undefined : focusComponentId,
-    });
-    if (!response.ok) {
-      toast.error(response.error);
-      setPhase(result ? "result" : "idle");
+  const onGenerate = useCallback(
+    async (mode: QuizMode = "QUICK") => {
+      setGeneratingCount(mode === "STANDARD" ? 10 : 5);
+      setPhase("generating");
+      setResult(null);
+      setAnswers({});
+      responseTimes.current = {};
+      const response = await startQuiz({
+        materialId,
+        mode,
+        componentId:
+          focusComponentId === "mixed" ? undefined : focusComponentId,
+      });
+      if (!response.ok) {
+        toast.error(response.error);
+        setPhase(result ? "result" : "idle");
+        return;
+      }
+      setToken(response.token);
+      setQuestions(response.questions);
+      startedAt.current = Date.now();
+      setPhase("taking");
+    },
+    [focusComponentId, materialId, result],
+  );
+
+  useEffect(() => {
+    if (
+      autoStartKey <= 0 ||
+      autoStartKey === lastAutoStartKey.current ||
+      concepts.length === 0 ||
+      phase !== "idle"
+    ) {
       return;
     }
-    setToken(response.token);
-    setQuestions(response.questions);
-    startedAt.current = Date.now();
-    setPhase("taking");
-  }
+    lastAutoStartKey.current = autoStartKey;
+    void onGenerate("QUICK");
+  }, [autoStartKey, concepts.length, onGenerate, phase]);
 
   const allAnswered =
     questions.length > 0 &&
@@ -145,6 +169,7 @@ export function QuizRunner({
       toast.success(`Quiz complete. +${response.xpAwarded} XP`);
     }
     celebrate(response.celebration);
+    router.refresh();
   }
 
   async function onExportPdf() {
@@ -179,8 +204,8 @@ export function QuizRunner({
         <div className="flex flex-col items-center gap-3 py-10 text-center">
           <BrainCircuit className="text-primary size-8" />
           <p className="text-muted-foreground max-w-sm text-sm">
-            Confirm the concept map above before generating a mastery-tracked
-            quiz.
+            Analyze this material and confirm its quiz concepts above to unlock
+            practice.
           </p>
         </div>
       );
@@ -218,17 +243,17 @@ export function QuizRunner({
           </Select>
         </div>
         <div className="flex flex-wrap justify-center gap-2">
-          <Button onClick={() => onGenerate("STANDARD")} className="gap-2">
+          <Button onClick={() => onGenerate("QUICK")} className="gap-2">
             <Sparkles className="size-4" />
-            Standard 10
+            Start Quick Quiz (5)
           </Button>
           <Button
-            onClick={() => onGenerate("QUICK")}
+            onClick={() => onGenerate("STANDARD")}
             variant="outline"
             className="gap-2"
           >
             <Clock3 className="size-4" />
-            Quick 5
+            Start Standard Quiz (10)
           </Button>
         </div>
       </div>
@@ -237,13 +262,24 @@ export function QuizRunner({
 
   if (phase === "generating") {
     return (
-      <div className="space-y-4">
-        {[0, 1, 2].map((index) => (
-          <div key={index} className="space-y-2">
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-          </div>
+      <div className="space-y-4" role="status" aria-live="polite">
+        <div>
+          <h3 className="font-medium">
+            Creating your {generatingCount === 5 ? "Quick" : "Standard"} Quiz…
+          </h3>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Building {generatingCount} questions from the concepts you
+            confirmed.
+          </p>
+        </div>
+        {Array.from({ length: generatingCount }, (_, index) => (
+          <Card key={index} className="space-y-3 p-4">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </Card>
         ))}
       </div>
     );

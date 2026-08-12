@@ -11,8 +11,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export const dynamic = "force-dynamic";
-
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }

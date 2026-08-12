@@ -124,8 +124,9 @@ export function MasteryMap({ overview }: { overview: MasteryOverview }) {
         <Sprout className="text-primary size-8" />
         <h2 className="font-medium">Your mastery map is ready to grow</h2>
         <p className="text-muted-foreground max-w-md text-sm">
-          Open a material, assign it to a topic, and confirm its concept map.
-          Your first concept-aligned quiz will create the first estimates.
+          Open a material, let LUMII suggest its topic, and confirm the quiz
+          concepts. Your first concept-aligned quiz will create the first
+          estimates.
         </p>
         <Button
           nativeButton={false}

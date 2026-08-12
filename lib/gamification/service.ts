@@ -274,7 +274,6 @@ export interface AchievementsData {
 export async function getAchievementsData(
   userId: string,
 ): Promise<AchievementsData> {
-  await ensureTrophies();
   const [profile, userTrophies] = await Promise.all([
     prisma.gamificationProfile.findUnique({ where: { userId } }),
     prisma.userTrophy.findMany({

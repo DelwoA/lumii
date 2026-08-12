@@ -6,16 +6,18 @@
 //   sub-steps under /sign-up. After signing up, the user is sent to /dashboard.
 // =============================================================================
 import { SignUp } from "@clerk/nextjs";
-
-export const dynamic = "force-dynamic";
+import { Suspense } from "react";
+import { AuthCardSkeleton } from "@/components/loading/page-skeletons";
 
 export default function SignUpPage() {
   // Send a new sign-up to the dashboard (honoring any deep link), and route the
   // "already have an account?" link to the same place after signing in.
   return (
-    <SignUp
-      fallbackRedirectUrl="/dashboard"
-      signInFallbackRedirectUrl="/dashboard"
-    />
+    <Suspense fallback={<AuthCardSkeleton />}>
+      <SignUp
+        fallbackRedirectUrl="/dashboard"
+        signInFallbackRedirectUrl="/dashboard"
+      />
+    </Suspense>
   );
 }

@@ -67,7 +67,6 @@ export function TopicCreateDialog({ subjectId }: { subjectId: string }) {
               id="topic-name"
               name="name"
               placeholder="e.g. Process scheduling"
-              autoFocus
               maxLength={60}
               required
             />

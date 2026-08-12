@@ -2,8 +2,6 @@ import { requireDbUser } from "@/lib/auth";
 import { getMasteryOverview } from "@/lib/mastery/service";
 import { MasteryMap } from "@/components/progress/mastery-map";
 
-export const dynamic = "force-dynamic";
-
 export default async function MasteryPage() {
   const user = await requireDbUser();
   const overview = await getMasteryOverview(user.id);

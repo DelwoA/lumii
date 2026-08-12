@@ -10,8 +10,7 @@ import { MaterialDeleteButton } from "@/components/materials/material-delete-but
 import { MaterialAISection } from "@/components/materials/material-ai-section";
 import { MaterialTranscribeButton } from "@/components/materials/material-transcribe-button";
 import { MaterialOrganization } from "@/components/library/material-organization";
-
-export const dynamic = "force-dynamic";
+import { MaterialTitle } from "@/components/materials/material-title";
 
 const STATUS_LABEL = {
   PENDING_UPLOAD: "Uploading",
@@ -94,6 +93,22 @@ export default async function LibraryMaterialPage({
         : [],
     };
   });
+  const learningWorkspace =
+    material.status === "READY" ? (
+      <Card className="p-5">
+        <MaterialAISection
+          materialId={material.id}
+          materialTitle={material.title}
+          summaryMarkdown={material.summaries[0]?.content ?? null}
+          subjectName={material.subject?.name ?? null}
+          topicName={material.topic?.name ?? null}
+          concepts={concepts}
+          defaultTab={tab === "quiz" || tab === "chat" ? tab : "summary"}
+          initialFocusComponentId={focus}
+          autoFocusConcepts={setup === "concepts"}
+        />
+      </Card>
+    ) : null;
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8">
@@ -109,9 +124,10 @@ export default async function LibraryMaterialPage({
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight break-words sm:text-3xl">
-              {material.title}
-            </h1>
+            <MaterialTitle
+              materialId={material.id}
+              initialTitle={material.title}
+            />
             <Badge variant="outline">
               {material.type === "PDF"
                 ? "PDF"
@@ -149,6 +165,8 @@ export default async function LibraryMaterialPage({
         initialTopicId={material.topicId}
         autoFocus={setup === "organization"}
       />
+
+      {setup === "concepts" ? learningWorkspace : null}
 
       {material.type === "NOTE" ? (
         <Card className="p-5">
@@ -217,20 +235,7 @@ export default async function LibraryMaterialPage({
         </>
       )}
 
-      {material.status === "READY" ? (
-        <Card className="p-5">
-          <MaterialAISection
-            materialId={material.id}
-            materialTitle={material.title}
-            summaryMarkdown={material.summaries[0]?.content ?? null}
-            topicName={material.topic?.name ?? null}
-            concepts={concepts}
-            defaultTab={tab === "quiz" || tab === "chat" ? tab : "summary"}
-            initialFocusComponentId={focus}
-            autoFocusConcepts={setup === "concepts"}
-          />
-        </Card>
-      ) : null}
+      {setup !== "concepts" ? learningWorkspace : null}
     </div>
   );
 }

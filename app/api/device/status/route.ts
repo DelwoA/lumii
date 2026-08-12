@@ -12,9 +12,6 @@ import {
   getDeviceStatus,
 } from "@/lib/iot/service";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 export async function GET(request: NextRequest) {
   const token = parseBearerToken(request);
   if (!token) return unauthorizedDevice();

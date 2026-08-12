@@ -1,24 +1,54 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { loadMaterialForAI } from "@/lib/materials/content";
 import { proposeKnowledgeComponents } from "@/lib/ai/concepts";
 
-const confirmSchema = z.array(
-  z.object({
-    id: z.string().min(1),
-    selected: z.boolean(),
-    name: z.string().trim().min(2).max(80),
-    description: z.string().trim().min(10).max(300),
-  }),
-);
+const conceptInput = z.object({
+  name: z.string().trim().min(2).max(80),
+  description: z.string().trim().min(10).max(300),
+  evidence: z.array(z.string().trim().min(3).max(240)).max(3),
+  selected: z.boolean(),
+});
 
-export type ConceptActionResult = { ok: true } | { ok: false; error: string };
+const confirmInput = z.object({
+  topicName: z.string().trim().min(2).max(80),
+  concepts: z.array(conceptInput).min(1).max(8),
+});
 
-function normalizeConceptName(name: string) {
+export type MaterialSetupProposal = {
+  subject: { id: string; name: string };
+  topic: { id: string | null; name: string; isExisting: boolean };
+  concepts: Array<{
+    name: string;
+    description: string;
+    evidence: string[];
+  }>;
+};
+
+export type ProposeMaterialSetupResult =
+  | { ok: true; proposal: MaterialSetupProposal }
+  | { ok: false; error: string };
+
+export type ConfirmMaterialSetupResult =
+  | {
+      ok: true;
+      materialId: string;
+      topic: { id: string; name: string };
+      concepts: Array<{
+        id: string;
+        name: string;
+        description: string;
+        status: "CONFIRMED";
+        evidence: string[];
+      }>;
+    }
+  | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
+
+function normalizeName(name: string) {
   return name
     .normalize("NFKC")
     .trim()
@@ -27,178 +57,194 @@ function normalizeConceptName(name: string) {
     .replace(/\s+/g, " ");
 }
 
-export async function proposeMaterialConcepts(
+export async function proposeMaterialSetup(
   materialId: string,
-): Promise<ConceptActionResult> {
+): Promise<ProposeMaterialSetupResult> {
   const user = await requireDbUser();
-  const loaded = await loadMaterialForAI(user.id, materialId);
-  if (!loaded) return { ok: false, error: "Material is not ready yet" };
-  if (!loaded.topicId) {
+  const [loaded, material] = await Promise.all([
+    loadMaterialForAI(user.id, materialId),
+    prisma.material.findFirst({
+      where: { id: materialId, userId: user.id },
+      select: {
+        subject: { select: { id: true, name: true } },
+        topic: { select: { id: true, name: true } },
+      },
+    }),
+  ]);
+  if (!loaded || !material) {
+    return { ok: false, error: "Material is not ready yet." };
+  }
+  if (!material.subject) {
     return {
       ok: false,
-      error: "Assign this material to a topic before setting up mastery.",
+      error: "Choose a subject before analyzing this material.",
     };
   }
 
-  const topic = await prisma.topic.findFirst({
-    where: { id: loaded.topicId, userId: user.id, archivedAt: null },
-    select: { id: true, name: true },
-  });
-  if (!topic) return { ok: false, error: "The selected topic is unavailable." };
-
   try {
-    const proposal = await proposeKnowledgeComponents(
+    const generated = await proposeKnowledgeComponents(
       loaded.content,
-      topic.name,
+      material.subject.name,
+      material.topic?.name,
     );
-    const existing = await prisma.knowledgeComponent.findMany({
-      where: { userId: user.id, topicId: topic.id },
-    });
-    const byName = new Map(
-      existing.map((component) => [component.normalizedName, component]),
-    );
-
-    await prisma.$transaction(async (tx) => {
-      for (const concept of proposal.concepts) {
-        const normalizedName = normalizeConceptName(concept.name);
-        const match = byName.get(normalizedName);
-        const component = match
-          ? await tx.knowledgeComponent.update({
-              where: { id: match.id },
-              data:
-                match.status === "ARCHIVED"
-                  ? { status: "PROPOSED", description: concept.description }
-                  : {},
-            })
-          : await tx.knowledgeComponent.create({
-              data: {
-                userId: user.id,
-                topicId: topic.id,
-                name: concept.name.trim(),
-                normalizedName,
-                description: concept.description.trim(),
-                status: "PROPOSED",
-                origin: "AI",
-              },
-            });
-        await tx.materialKnowledgeComponent.upsert({
+    const existingTopic = material.topic
+      ? material.topic
+      : await prisma.topic.findFirst({
           where: {
-            materialId_knowledgeComponentId: {
-              materialId,
-              knowledgeComponentId: component.id,
-            },
-          },
-          create: {
             userId: user.id,
-            materialId,
-            knowledgeComponentId: component.id,
-            evidence: {
-              passages: concept.evidence,
-              modelId: proposal.modelId,
-            },
+            subjectId: material.subject.id,
+            archivedAt: null,
+            name: { equals: generated.topicName, mode: "insensitive" },
           },
-          update: {
-            evidence: {
-              passages: concept.evidence,
-              modelId: proposal.modelId,
-            },
-          },
+          select: { id: true, name: true },
         });
-      }
-    });
-    revalidatePath(`/library/materials/${materialId}`);
-    return { ok: true };
+
+    return {
+      ok: true,
+      proposal: {
+        subject: material.subject,
+        topic: {
+          id: existingTopic?.id ?? null,
+          name: existingTopic?.name ?? generated.topicName,
+          isExisting: Boolean(existingTopic),
+        },
+        concepts: generated.concepts,
+      },
+    };
   } catch {
     return {
       ok: false,
-      error: "Could not map concepts from this material. Please try again.",
+      error: "LUMII could not analyze this material. Try again.",
     };
   }
 }
 
-export async function confirmMaterialConcepts(
+export async function confirmMaterialSetup(
   materialId: string,
   input: unknown,
-): Promise<ConceptActionResult> {
+): Promise<ConfirmMaterialSetupResult> {
   const user = await requireDbUser();
-  const parsed = confirmSchema.safeParse(input);
-  if (!parsed.success || parsed.data.length === 0) {
-    return { ok: false, error: "Review at least one concept." };
+  const parsed = confirmInput.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Review the suggested topic and concepts." };
   }
-  const selected = parsed.data.filter((item) => item.selected);
-  if (selected.length === 0) {
-    return { ok: false, error: "Keep at least one concept for this material." };
-  }
-
-  const material = await prisma.material.findFirst({
-    where: { id: materialId, userId: user.id },
-    select: {
-      topicId: true,
-      knowledgeComponents: {
-        select: { knowledgeComponent: { select: { id: true, topicId: true } } },
-      },
-    },
-  });
-  if (!material?.topicId) return { ok: false, error: "Material not found." };
-  const allowed = new Set(
-    material.knowledgeComponents.map((link) => link.knowledgeComponent.id),
-  );
-  if (parsed.data.some((item) => !allowed.has(item.id))) {
-    return { ok: false, error: "A concept does not belong to this material." };
+  const selected = parsed.data.concepts.filter((concept) => concept.selected);
+  if (!selected.length) {
+    return { ok: false, error: "Keep at least one quiz concept." };
   }
 
   try {
-    await prisma.$transaction(async (tx) => {
-      for (const item of parsed.data) {
-        if (item.selected) {
-          await tx.knowledgeComponent.update({
-            where: { id: item.id },
-            data: {
-              name: item.name,
-              normalizedName: normalizeConceptName(item.name),
-              description: item.description,
-              status: "CONFIRMED",
-            },
-          });
-        } else {
-          await tx.materialKnowledgeComponent.deleteMany({
-            where: {
-              userId: user.id,
-              materialId,
-              knowledgeComponentId: item.id,
-            },
-          });
-          const useCount = await tx.materialKnowledgeComponent.count({
-            where: { knowledgeComponentId: item.id },
-          });
-          if (useCount === 0) {
-            await tx.knowledgeComponent.deleteMany({
-              where: {
-                id: item.id,
-                userId: user.id,
-                status: "PROPOSED",
-                questionAttempts: { none: {} },
-              },
-            });
-          }
-        }
+    const result = await prisma.$transaction(async (tx) => {
+      const material = await tx.material.findFirst({
+        where: { id: materialId, userId: user.id },
+        select: { id: true, subjectId: true, topicId: true },
+      });
+      if (!material?.subjectId) throw new Error("MATERIAL_NOT_FOUND");
+
+      let topic = await tx.topic.findFirst({
+        where: {
+          userId: user.id,
+          subjectId: material.subjectId,
+          archivedAt: null,
+          name: { equals: parsed.data.topicName, mode: "insensitive" },
+        },
+        select: { id: true, name: true },
+      });
+      topic ??= await tx.topic.create({
+        data: {
+          userId: user.id,
+          subjectId: material.subjectId,
+          name: parsed.data.topicName,
+        },
+        select: { id: true, name: true },
+      });
+
+      const oldLinks = await tx.materialKnowledgeComponent.findMany({
+        where: { materialId, userId: user.id },
+        select: { knowledgeComponentId: true },
+      });
+      await tx.materialKnowledgeComponent.deleteMany({
+        where: { materialId, userId: user.id },
+      });
+      await tx.material.update({
+        where: { id: materialId },
+        data: { topicId: topic.id },
+      });
+
+      const confirmed = [];
+      for (const concept of selected) {
+        const normalizedName = normalizeName(concept.name);
+        const component = await tx.knowledgeComponent.upsert({
+          where: {
+            topicId_normalizedName: { topicId: topic.id, normalizedName },
+          },
+          create: {
+            userId: user.id,
+            topicId: topic.id,
+            name: concept.name,
+            normalizedName,
+            description: concept.description,
+            status: "CONFIRMED",
+            origin: "AI",
+          },
+          update: {
+            name: concept.name,
+            description: concept.description,
+            status: "CONFIRMED",
+          },
+          select: { id: true, name: true, description: true },
+        });
+        await tx.materialKnowledgeComponent.create({
+          data: {
+            userId: user.id,
+            materialId,
+            knowledgeComponentId: component.id,
+            evidence: { passages: concept.evidence },
+          },
+        });
+        confirmed.push({
+          ...component,
+          status: "CONFIRMED" as const,
+          evidence: concept.evidence,
+        });
       }
+
+      const oldIds = oldLinks.map((link) => link.knowledgeComponentId);
+      if (oldIds.length) {
+        await tx.knowledgeComponent.deleteMany({
+          where: {
+            id: { in: oldIds },
+            userId: user.id,
+            materials: { none: {} },
+            questionAttempts: { none: {} },
+            mastery: { none: {} },
+            snapshots: { none: {} },
+          },
+        });
+      }
+      return { topic, confirmed };
     });
+
+    revalidatePath("/library");
     revalidatePath(`/library/materials/${materialId}`);
     revalidatePath("/progress/mastery");
-    return { ok: true };
+    revalidateTag(`user:${user.id}:subjects`, "max");
+    return {
+      ok: true,
+      materialId,
+      topic: result.topic,
+      concepts: result.confirmed,
+    };
   } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "P2002"
-    ) {
-      return {
-        ok: false,
-        error: "Two concepts have the same name. Combine or rename them.",
-      };
-    }
-    return { ok: false, error: "Could not save the concept map." };
+    return {
+      ok: false,
+      error:
+        error instanceof Error && error.message === "MATERIAL_NOT_FOUND"
+          ? "Material or subject not found."
+          : "Could not save the topic and quiz concepts.",
+    };
   }
 }
+
+// Compatibility aliases for older callers while the guided flow is consolidated.
+export const proposeMaterialConcepts = proposeMaterialSetup;

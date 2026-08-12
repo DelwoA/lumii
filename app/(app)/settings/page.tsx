@@ -10,8 +10,6 @@ import { prisma } from "@/lib/prisma";
 import { SettingsClient } from "@/components/settings/settings-client";
 import { isDeviceApiEnabled, listDevices } from "@/lib/iot/service";
 
-export const dynamic = "force-dynamic";
-
 export default async function SettingsPage() {
   const user = await requireDbUser();
   const [publicProfile, devices] = await Promise.all([

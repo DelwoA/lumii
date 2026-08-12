@@ -14,34 +14,35 @@
 // HOW TO FIND THINGS:
 //   - The left navigation menu lives in components/app-sidebar.tsx.
 //   - The top bar (Start session, profile) lives in components/app-topbar.tsx.
-//   - "force-dynamic" below means these pages are always built fresh per request
-//     (because they show the signed-in user's own data).
+//   - Signed-in reads are user-keyed, and safe reusable data is cached through
+//     Next.js Cache Components while request-only UI streams behind Suspense.
 // =============================================================================
 import { requireDbUser } from "@/lib/auth";
-import { getGamificationSummary } from "@/lib/gamification/service";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppSidebar, AppSidebarFallback } from "@/components/app-sidebar";
 import { AppTopbar } from "@/components/app-topbar";
 import { ActiveSessionBar } from "@/components/session/active-session-bar";
 import { CelebrationOverlay } from "@/components/celebration/celebration-overlay";
+import { Suspense } from "react";
+import { getCachedGamificationSummary } from "@/lib/cache/app-data";
 
-export const dynamic = "force-dynamic";
-
-// Authenticated application shell: gates access (lazy-provisioning the user),
-// provides the Clerk context, and renders the collapsible sidebar + topbar.
-export default async function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+async function AuthenticatedSidebar() {
   const user = await requireDbUser();
-  const summary = await getGamificationSummary(user.id);
+  const summary = await getCachedGamificationSummary(user.id);
+  return <AppSidebar summary={summary} />;
+}
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
-      <AppSidebar summary={summary} />
+      <Suspense fallback={<AppSidebarFallback />}>
+        <AuthenticatedSidebar />
+      </Suspense>
       <SidebarInset>
         <AppTopbar />
-        <ActiveSessionBar />
+        <Suspense fallback={null}>
+          <ActiveSessionBar />
+        </Suspense>
         <main className="flex flex-1 flex-col">{children}</main>
       </SidebarInset>
       <CelebrationOverlay />

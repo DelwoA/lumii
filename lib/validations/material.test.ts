@@ -65,7 +65,7 @@ describe("UPLOAD_CONTENT_TYPES", () => {
 
 describe("requestUploadInput", () => {
   const base = {
-    title: "Lecture 1",
+    subjectId: "subject-1",
     fileName: "scan.png",
     sizeBytes: 1024,
   };
@@ -102,5 +102,24 @@ describe("requestUploadInput", () => {
       sizeBytes: 0,
     });
     expect(r.success).toBe(false);
+  });
+
+  it("requires a subject but keeps the topic optional", () => {
+    expect(
+      requestUploadInput.safeParse({
+        ...base,
+        contentType: "application/pdf",
+      }).success,
+    ).toBe(true);
+    const withoutSubject = {
+      fileName: base.fileName,
+      sizeBytes: base.sizeBytes,
+    };
+    expect(
+      requestUploadInput.safeParse({
+        ...withoutSubject,
+        contentType: "application/pdf",
+      }).success,
+    ).toBe(false);
   });
 });

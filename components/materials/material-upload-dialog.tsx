@@ -81,8 +81,7 @@ function readAudioDurationSec(file: File): Promise<number | null> {
 }
 
 type UploadArgs = {
-  title: string;
-  subjectId?: string;
+  subjectId: string;
   file: File;
   contentType: UploadContentType;
 };
@@ -104,13 +103,11 @@ export function MaterialUploadDialog({
 
   /** Single-PUT fast path for small files. Returns the materialId, or null. */
   async function uploadSingle({
-    title,
     subjectId,
     file,
     contentType,
   }: UploadArgs): Promise<string | null> {
     const res = await requestUpload({
-      title,
       subjectId,
       fileName: file.name,
       contentType,
@@ -139,13 +136,11 @@ export function MaterialUploadDialog({
 
   /** Resumable multipart path for large files. Returns the materialId, or null. */
   async function uploadMultipart({
-    title,
     subjectId,
     file,
     contentType,
   }: UploadArgs): Promise<string | null> {
     const res = await startMultipartUpload({
-      title,
       subjectId,
       fileName: file.name,
       contentType,
@@ -193,11 +188,12 @@ export function MaterialUploadDialog({
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const title = String(form.get("title") ?? "").trim();
-    const subjectId = (form.get("subjectId") as string) || undefined;
+    const subjectId = String(form.get("subjectId") ?? "");
     const file = fileRef.current?.files?.[0];
 
     if (!file) return toast.error("Choose a file to upload");
+    if (!subjectId || subjectId === "none")
+      return toast.error("Choose a subject");
     if (!isAcceptedType(file.type))
       return toast.error("Only PDF, image, or audio files are supported");
     if (file.size > MAX_FILE_BYTES)
@@ -221,7 +217,6 @@ export function MaterialUploadDialog({
     setProgress(null);
     try {
       const args: UploadArgs = {
-        title,
         subjectId,
         file,
         contentType: file.type,
@@ -289,16 +284,6 @@ export function MaterialUploadDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="m-title">Title</Label>
-              <Input
-                id="m-title"
-                name="title"
-                required
-                maxLength={120}
-                placeholder="e.g. Week 3: Scheduling"
-              />
-            </div>
             <div className="grid gap-2">
               <Label htmlFor="m-file">File</Label>
               <Input

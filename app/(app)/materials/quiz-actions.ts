@@ -96,7 +96,7 @@ export async function startQuiz(input: {
   if (!loaded.topicId) {
     return {
       ok: false,
-      error: "Assign this material to a topic before generating a quiz.",
+      error: "Analyze this material and confirm its suggested topic first.",
     };
   }
 
@@ -116,7 +116,7 @@ export async function startQuiz(input: {
   if (components.length === 0) {
     return {
       ok: false,
-      error: "Confirm this material's concept map before generating a quiz.",
+      error: "Confirm this material's quiz concepts before starting a quiz.",
     };
   }
 

@@ -26,8 +26,6 @@ import {
 import { SubjectCreateDialog } from "@/components/subjects/subject-create-dialog";
 import { DeleteMenu } from "@/components/subjects/delete-menu";
 
-export const dynamic = "force-dynamic";
-
 const STATUS_LABEL = {
   PENDING_UPLOAD: "Uploading",
   PENDING_TRANSCRIPTION: "Transcribing",
@@ -273,8 +271,8 @@ export default async function LibraryPage({
               <BookOpen className="text-primary size-8" />
               <h3 className="font-medium">Create your first subject</h3>
               <p className="text-muted-foreground max-w-md text-sm">
-                Every new material needs a subject and topic. Start with the
-                course you are studying now.
+                Every new material needs a subject. LUMII suggests the topic
+                after it reads the material.
               </p>
               <SubjectCreateDialog />
             </Card>
@@ -375,21 +373,25 @@ export default async function LibraryPage({
                 const confirmed = material.knowledgeComponents.some(
                   (link) => link.knowledgeComponent.status === "CONFIRMED",
                 );
-                const setupAction =
-                  !material.subjectId || !material.topicId
-                    ? "Choose Subject & Topic"
-                    : proposed
-                      ? "Review & Confirm"
-                      : !confirmed && material.status === "READY"
-                        ? "Map Concepts"
-                        : null;
+                const setupAction = !material.subjectId
+                  ? "Choose Subject"
+                  : proposed
+                    ? "Review & Confirm"
+                    : !confirmed && material.status === "READY"
+                      ? "Analyze Material"
+                      : null;
                 const href = `/library/materials/${material.id}${
                   setupAction
-                    ? `?setup=${!material.subjectId || !material.topicId ? "organization" : "concepts"}`
+                    ? `?setup=${!material.subjectId ? "organization" : "concepts"}`
                     : ""
                 }`;
                 return (
-                  <Link key={material.id} href={href} className="group">
+                  <Link
+                    key={material.id}
+                    href={href}
+                    prefetch
+                    className="group"
+                  >
                     <Card className="group-hover:border-primary/50 flex h-full flex-col gap-4 p-5 transition group-hover:shadow-sm">
                       <div className="flex items-start justify-between gap-3">
                         <span className="bg-muted text-muted-foreground rounded-lg p-2.5">
@@ -437,7 +439,7 @@ export default async function LibraryPage({
               </h3>
               <p className="text-muted-foreground max-w-md text-sm">
                 {view === "setup"
-                  ? "Your materials are organized and their concept maps are confirmed."
+                  ? "Your materials are organized and their quiz concepts are confirmed."
                   : search || subjectFilter !== "all" || statusFilter !== "all"
                     ? "Try changing the search or filters."
                     : "Add a file or typed note and organize it for study."}

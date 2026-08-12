@@ -86,8 +86,7 @@ const MAX_FILE_LABEL = "File must be 200 MB or less";
 
 /** Client requests a presigned upload for a file (single-PUT or multipart). */
 export const requestUploadInput = z.object({
-  title: z.string().trim().min(1, "Title is required").max(120),
-  subjectId: z.string().min(1).optional(),
+  subjectId: z.string().min(1, "Subject is required"),
   topicId: z.string().min(1).optional(),
   fileName: z.string().min(1).max(200),
   contentType: z.enum(UPLOAD_CONTENT_TYPES, {
@@ -125,8 +124,7 @@ export type AbortMultipartInput = z.infer<typeof abortMultipartInput>;
 
 /** Typed-note material (no file). */
 export const noteInput = z.object({
-  title: z.string().trim().min(1, "Title is required").max(120),
-  subjectId: z.string().min(1).optional(),
+  subjectId: z.string().min(1, "Subject is required"),
   topicId: z.string().min(1).optional(),
   text: z
     .string()

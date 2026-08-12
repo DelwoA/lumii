@@ -64,3 +64,19 @@ test("legacy learning-content routes redirect permanently to Library", async ({
   expect(subjects.status()).toBe(308);
   expect(subjects.headers().location).toBe("/library?view=subjects");
 });
+
+test("adding material asks for one organizational choice", async ({ page }) => {
+  await page.goto("/library/new");
+  await expect(
+    page.getByRole("heading", { name: "Which subject is this for?" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Subject", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Title", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Topic", { exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Create New Subject" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Create a Subject" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Subject Name")).toBeVisible();
+});

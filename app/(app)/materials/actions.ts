@@ -47,6 +47,10 @@ import {
 import { transcribeAudio } from "@/lib/ai/transcribe";
 import { indexMaterial } from "@/lib/rag/service";
 import type { ActionState } from "@/lib/forms";
+import {
+  materialTitleFromFilename,
+  materialTitleFromNote,
+} from "@/lib/materials/title";
 
 export type MaterialMutationResult =
   | { ok: true; materialId: string }
@@ -63,13 +67,19 @@ function fail(
   return { ok: false, error };
 }
 
-/** Ensure an optional subject/topic belongs to the user (derived ownership). */
+/** Ensure the required subject and optional contextual topic belong together. */
 async function assertScopeOwned(
   userId: string,
-  subjectId?: string,
+  subjectId: string,
   topicId?: string,
 ): Promise<boolean> {
-  if (!subjectId || !topicId) return false;
+  const subject = await prisma.subject.findFirst({
+    where: { id: subjectId, userId, archivedAt: null },
+    select: { id: true },
+  });
+  if (!subject) return false;
+  if (!topicId) return true;
+
   const topic = await prisma.topic.findFirst({
     where: {
       id: topicId,
@@ -104,7 +114,7 @@ async function createPendingFile(
       userId,
       subjectId: data.subjectId,
       topicId: data.topicId,
-      title: data.title,
+      title: materialTitleFromFilename(data.fileName),
       type,
       r2Key: key,
       originalName: data.fileName,
@@ -480,7 +490,6 @@ export async function createNote(
 ): Promise<MaterialMutationResult> {
   const user = await requireDbUser();
   const parsed = noteInput.safeParse({
-    title: formData.get("title"),
     subjectId: (formData.get("subjectId") as string) || undefined,
     topicId: (formData.get("topicId") as string) || undefined,
     text: formData.get("text"),
@@ -502,7 +511,7 @@ export async function createNote(
       userId: user.id,
       subjectId: parsed.data.subjectId,
       topicId: parsed.data.topicId,
-      title: parsed.data.title,
+      title: materialTitleFromNote(parsed.data.text),
       type: "NOTE",
       noteText: parsed.data.text,
       status: "READY",
@@ -523,39 +532,46 @@ export async function createNote(
 export async function updateMaterialOrganization(input: {
   materialId: string;
   subjectId: string;
-  topicId: string;
+  topicId?: string;
 }): Promise<MaterialMutationResult> {
   const user = await requireDbUser();
-  if (!input.materialId || !input.subjectId || !input.topicId) {
-    return fail("Choose a subject and topic.", {
+  if (!input.materialId || !input.subjectId) {
+    return fail("Choose a subject.", {
       subjectId: input.subjectId ? [] : ["Subject is required"],
-      topicId: input.topicId ? [] : ["Topic is required"],
     });
   }
 
   try {
     await prisma.$transaction(async (tx) => {
-      const [material, topic] = await Promise.all([
+      const [material, subject, topic] = await Promise.all([
         tx.material.findFirst({
           where: { id: input.materialId, userId: user.id },
           select: { id: true, subjectId: true, topicId: true },
         }),
-        tx.topic.findFirst({
-          where: {
-            id: input.topicId,
-            subjectId: input.subjectId,
-            userId: user.id,
-            archivedAt: null,
-            subject: { userId: user.id, archivedAt: null },
-          },
+        tx.subject.findFirst({
+          where: { id: input.subjectId, userId: user.id, archivedAt: null },
           select: { id: true },
         }),
+        input.topicId
+          ? tx.topic.findFirst({
+              where: {
+                id: input.topicId,
+                subjectId: input.subjectId,
+                userId: user.id,
+                archivedAt: null,
+                subject: { userId: user.id, archivedAt: null },
+              },
+              select: { id: true },
+            })
+          : Promise.resolve(null),
       ]);
       if (!material) throw new Error("MATERIAL_NOT_FOUND");
-      if (!topic) throw new Error("TOPIC_MISMATCH");
+      if (!subject || (input.topicId && !topic)) {
+        throw new Error("TOPIC_MISMATCH");
+      }
       if (
         material.subjectId === input.subjectId &&
-        material.topicId === input.topicId
+        material.topicId === (input.topicId ?? null)
       ) {
         return;
       }
@@ -569,7 +585,7 @@ export async function updateMaterialOrganization(input: {
       });
       await tx.material.update({
         where: { id: material.id },
-        data: { subjectId: input.subjectId, topicId: input.topicId },
+        data: { subjectId: input.subjectId, topicId: input.topicId ?? null },
       });
       const oldIds = oldLinks.map((link) => link.knowledgeComponentId);
       if (oldIds.length) {
@@ -579,6 +595,8 @@ export async function updateMaterialOrganization(input: {
             userId: user.id,
             materials: { none: {} },
             questionAttempts: { none: {} },
+            mastery: { none: {} },
+            snapshots: { none: {} },
           },
         });
       }
@@ -595,6 +613,28 @@ export async function updateMaterialOrganization(input: {
   revalidatePath("/library");
   revalidatePath(`/library/materials/${input.materialId}`);
   revalidatePath("/progress/mastery");
+  return ok(input.materialId);
+}
+
+/** Rename the student-facing material label without changing its organization. */
+export async function renameMaterial(input: {
+  materialId: string;
+  title: string;
+}): Promise<MaterialMutationResult> {
+  const user = await requireDbUser();
+  const title = input.title.trim().replace(/\s+/g, " ");
+  if (title.length < 2 || title.length > 120) {
+    return fail("Use a material name between 2 and 120 characters.", {
+      title: ["Material name must be between 2 and 120 characters"],
+    });
+  }
+  const result = await prisma.material.updateMany({
+    where: { id: input.materialId, userId: user.id },
+    data: { title },
+  });
+  if (!result.count) return fail("Material not found.");
+  revalidatePath("/library");
+  revalidatePath(`/library/materials/${input.materialId}`);
   return ok(input.materialId);
 }
 

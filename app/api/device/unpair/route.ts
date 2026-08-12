@@ -3,9 +3,6 @@ import { deviceError, deviceJson, readSmallJson } from "@/lib/iot/http";
 import { unpairDeviceInputSchema } from "@/lib/iot/schemas";
 import { unpairDevice } from "@/lib/iot/service";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 export async function POST(request: Request) {
   const origin = request.headers.get("origin");
   const expectedOrigin = new URL(request.url).origin;

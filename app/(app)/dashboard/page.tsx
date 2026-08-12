@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getGamificationSummary } from "@/lib/gamification/service";
+import { getCachedGamificationSummary } from "@/lib/cache/app-data";
 import { listForLocalDate } from "@/lib/timetable/service";
 import { localDateString } from "@/lib/timetable/dates";
 import { formatDurationShort } from "@/lib/format";
@@ -31,8 +31,6 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { TodayPlan } from "@/components/dashboard/today-plan";
 import { MoodCheckin } from "@/components/mood/mood-checkin";
-
-export const dynamic = "force-dynamic";
 
 function titleCase(s: string): string {
   return s.charAt(0) + s.slice(1).toLowerCase();
@@ -45,7 +43,7 @@ export default async function DashboardPage() {
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const [summary, todaySessions, weekAgg, recentMaterials] = await Promise.all([
-    getGamificationSummary(user.id),
+    getCachedGamificationSummary(user.id),
     listForLocalDate(user.id, todayLocal),
     prisma.studySession.aggregate({
       where: {
@@ -168,6 +166,7 @@ export default async function DashboardPage() {
                 <li key={m.id}>
                   <Link
                     href={`/library/materials/${m.id}`}
+                    prefetch
                     className="hover:bg-muted flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
                   >
                     {m.type === "NOTE" ? (

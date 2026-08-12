@@ -30,7 +30,7 @@ const STEPS: { icon: LucideIcon; title: string; body: string }[] = [
   {
     icon: Upload,
     title: "Upload",
-    body: "Add a PDF or type notes for any subject and topic.",
+    body: "Add a PDF or typed note, choose its subject, and let LUMII suggest the topic.",
   },
   {
     icon: FileText,

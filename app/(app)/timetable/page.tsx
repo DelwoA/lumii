@@ -12,8 +12,6 @@ import { listScheduled } from "@/lib/timetable/service";
 import { TimetableClient } from "@/components/timetable/timetable-client";
 import type { SubjectOption } from "@/lib/timetable/types";
 
-export const dynamic = "force-dynamic";
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export default async function TimetablePage() {

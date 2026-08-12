@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { LumenSpark } from "@/components/lumen-spark";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sidebar,
   SidebarContent,
@@ -77,7 +78,7 @@ export function AppSidebar({ summary }: { summary?: GamificationSummary }) {
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
-                      render={<Link href={item.href} />}
+                      render={<Link href={item.href} prefetch />}
                       isActive={active}
                       tooltip={item.label}
                     >
@@ -110,6 +111,46 @@ export function AppSidebar({ summary }: { summary?: GamificationSummary }) {
             </div>
           </div>
         ) : null}
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
+
+/** Static shell used while the request-scoped pathname and XP arrive. */
+export function AppSidebarFallback() {
+  return (
+    <Sidebar collapsible="icon" aria-hidden="true">
+      <SidebarHeader>
+        <div className="flex items-center gap-2 px-2 py-1.5 font-semibold tracking-tight">
+          <LumenSpark className="size-6 shrink-0" />
+          <span className="group-data-[collapsible=icon]:hidden">LUMII</span>
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-2">
+              {NAV.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton>
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter>
+        <div className="space-y-2 px-2 py-1.5 group-data-[collapsible=icon]:hidden">
+          <div className="flex justify-between">
+            <Skeleton className="h-3 w-12" />
+            <Skeleton className="h-3 w-14" />
+          </div>
+          <Skeleton className="h-1.5 w-full" />
+          <Skeleton className="h-3 w-20" />
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

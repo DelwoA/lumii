@@ -142,7 +142,6 @@ export function DeleteMenu({
               value={nextName}
               onChange={(event) => setNextName(event.target.value)}
               maxLength={60}
-              autoFocus
             />
           </div>
           <DialogFooter>

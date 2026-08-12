@@ -13,6 +13,7 @@ import { QualityHub } from "@/components/progress/quality-hub";
 import { SessionHistory } from "@/components/progress/session-history";
 import { ProgressExportButtons } from "@/components/progress/progress-export-buttons";
 import { getMoodSummary, purgeExpiredMoodCheckins } from "@/lib/mood/service";
+import { after } from "next/server";
 import { getMasteryOverview } from "@/lib/mastery/service";
 import { MasteryPreview } from "@/components/progress/mastery-preview";
 import {
@@ -22,8 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-export const dynamic = "force-dynamic";
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -57,7 +56,9 @@ export default async function ProgressPage({
     getMasteryOverview(user.id),
   ]);
 
-  await purgeExpiredMoodCheckins(user.id);
+  // Retention cleanup is maintenance, not render-critical. Run it after the
+  // response so opening Progress is never held up by a delete query.
+  after(() => purgeExpiredMoodCheckins(user.id));
   const [moodSummary, moods] = await Promise.all([
     getMoodSummary(user.id),
     prisma.moodCheckin.findMany({
