@@ -15,7 +15,6 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -27,14 +26,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   abortUpload,
   cancelPendingUpload,
   completeUpload,
@@ -44,7 +35,10 @@ import {
   startMultipartUpload,
   transcribeAudioAction,
 } from "@/app/(app)/materials/actions";
-import { createOrganizerSubject } from "@/app/(app)/subjects/actions";
+import {
+  SubjectManagerDialog,
+  type ManagedSubject,
+} from "@/components/subjects/subject-manager-dialog";
 import {
   AUDIO_SINGLE_CALL_MAX_BYTES,
   AUDIO_SINGLE_CALL_MAX_SEC,
@@ -59,7 +53,7 @@ import { uploadParts } from "@/lib/storage/multipart-upload";
 import { ACTION_INITIAL } from "@/lib/forms";
 
 type TopicOption = { id: string; name: string };
-type SubjectOption = { id: string; name: string; topics: TopicOption[] };
+type SubjectOption = ManagedSubject & { topics: TopicOption[] };
 type DropState = "idle" | "active" | "accepted" | "rejected";
 
 function formatBytes(bytes: number) {
@@ -113,9 +107,6 @@ export function MaterialCreator({
   const [cancelling, setCancelling] = useState(false);
   const [uploadCancelable, setUploadCancelable] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
-  const [newSubject, setNewSubject] = useState("");
-  const [subjectDialogOpen, setSubjectDialogOpen] = useState(false);
-  const [creatingSubject, setCreatingSubject] = useState(false);
 
   function chooseFile(next: File | null) {
     if (!next) return;
@@ -130,21 +121,6 @@ export function MaterialCreator({
     }
     setFile(next);
     setDropState("accepted");
-  }
-
-  async function addSubject() {
-    if (!newSubject.trim()) return;
-    setCreatingSubject(true);
-    const result = await createOrganizerSubject({ name: newSubject });
-    setCreatingSubject(false);
-    if (!result.ok) return toast.error(result.error);
-    const subject = { id: result.id, name: result.name, topics: [] };
-    setSubjects((current) => [...current, subject]);
-    setSubjectId(subject.id);
-    setContextTopicId("");
-    setNewSubject("");
-    setSubjectDialogOpen(false);
-    toast.success("Subject created and selected");
   }
 
   async function validateFile(next: File) {
@@ -508,7 +484,11 @@ export function MaterialCreator({
                 >
                   <SelectValue placeholder="Choose a subject" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent
+                  align="start"
+                  alignItemWithTrigger={false}
+                  sideOffset={6}
+                >
                   {subjects.map((subject) => (
                     <SelectItem key={subject.id} value={subject.id}>
                       {subject.name}
@@ -516,15 +496,36 @@ export function MaterialCreator({
                   ))}
                 </SelectContent>
               </Select>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => setSubjectDialogOpen(true)}
+              <SubjectManagerDialog
+                subjects={subjects}
+                selectedSubjectId={subjectId}
                 disabled={busy}
-              >
-                Create New Subject
-              </Button>
+                onCreated={(subject) => {
+                  setSubjects((current) =>
+                    [...current, subject].toSorted((a, b) =>
+                      a.name.localeCompare(b.name),
+                    ),
+                  );
+                  setSubjectId(subject.id);
+                  setContextTopicId("");
+                }}
+                onRenamed={(subject) => {
+                  setSubjects((current) =>
+                    current
+                      .map((item) => (item.id === subject.id ? subject : item))
+                      .toSorted((a, b) => a.name.localeCompare(b.name)),
+                  );
+                }}
+                onDeleted={(deletedSubjectId) => {
+                  setSubjects((current) =>
+                    current.filter((item) => item.id !== deletedSubjectId),
+                  );
+                  if (subjectId === deletedSubjectId) {
+                    setSubjectId("");
+                    setContextTopicId("");
+                  }
+                }}
+              />
             </div>
 
             <div className="flex flex-col gap-2 pt-2">
@@ -561,56 +562,6 @@ export function MaterialCreator({
           </div>
         </Card>
       </div>
-
-      <Dialog open={subjectDialogOpen} onOpenChange={setSubjectDialogOpen}>
-        <DialogContent>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void addSubject();
-            }}
-          >
-            <DialogHeader>
-              <DialogTitle>Create a Subject</DialogTitle>
-              <DialogDescription>
-                Use the course or broad area you are studying. Topics will be
-                suggested from each material.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-2 py-4">
-              <Label htmlFor="new-material-subject">Subject Name</Label>
-              <Input
-                id="new-material-subject"
-                value={newSubject}
-                onChange={(event) => setNewSubject(event.target.value)}
-                placeholder="e.g. Physics"
-                maxLength={60}
-                disabled={creatingSubject}
-                autoComplete="off"
-              />
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setSubjectDialogOpen(false)}
-                disabled={creatingSubject}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={!newSubject.trim() || creatingSubject}
-              >
-                {creatingSubject ? (
-                  <LoaderCircle className="size-4 animate-spin" />
-                ) : null}
-                {creatingSubject ? "Creating…" : "Create & Select"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

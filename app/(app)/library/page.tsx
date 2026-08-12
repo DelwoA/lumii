@@ -124,7 +124,12 @@ export default async function LibraryPage({
           orderBy: { name: "asc" },
           select: { id: true, name: true },
         },
-        _count: { select: { topics: true, materials: true } },
+        _count: {
+          select: {
+            topics: { where: { archivedAt: null } },
+            materials: true,
+          },
+        },
       },
     }),
     prisma.material.count({
@@ -225,45 +230,44 @@ export default async function LibraryPage({
           {subjects.length ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {subjects.map((subject) => (
-                <div key={subject.id} className="group relative">
-                  <Link
-                    href={`/library/subjects/${subject.id}`}
-                    className="block h-full"
-                  >
-                    <Card className="group-hover:border-primary/50 h-full p-5 transition group-hover:shadow-sm">
-                      <div className="flex items-center gap-3 pr-8">
-                        <span
-                          className="size-3 shrink-0 rounded-full"
-                          style={{
-                            backgroundColor:
-                              subject.color ?? "var(--muted-foreground)",
-                          }}
-                        />
-                        <span className="truncate font-medium">
-                          {subject.name}
-                        </span>
-                      </div>
-                      <p className="text-muted-foreground mt-3 text-xs">
-                        {subject._count.topics} topics ·{" "}
-                        {subject._count.materials} materials
-                      </p>
-                      {subject.topics.length ? (
-                        <p className="text-muted-foreground mt-2 line-clamp-1 text-xs">
-                          {subject.topics
-                            .map((topic) => topic.name)
-                            .join(" · ")}
-                        </p>
-                      ) : null}
-                    </Card>
-                  </Link>
-                  <div className="absolute top-3 right-3">
+                <Card key={subject.id} className="flex h-full flex-col p-5">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      className="size-3 shrink-0 rounded-full"
+                      style={{
+                        backgroundColor:
+                          subject.color ?? "var(--muted-foreground)",
+                      }}
+                    />
+                    <h3 className="truncate font-medium" title={subject.name}>
+                      {subject.name}
+                    </h3>
+                  </div>
+                  <p className="text-muted-foreground mt-3 text-xs">
+                    {subject._count.topics} topics · {subject._count.materials}{" "}
+                    materials
+                  </p>
+                  {subject.topics.length ? (
+                    <p className="text-muted-foreground mt-2 line-clamp-1 text-xs">
+                      {subject.topics.map((topic) => topic.name).join(" · ")}
+                    </p>
+                  ) : null}
+                  <div className="mt-5 flex flex-wrap gap-2 border-t pt-4">
+                    <Button
+                      nativeButton={false}
+                      size="sm"
+                      render={<Link href={`/library/subjects/${subject.id}`} />}
+                    >
+                      Open Subject
+                    </Button>
                     <DeleteMenu
                       kind="subject"
                       id={subject.id}
                       name={subject.name}
+                      triggerLabel="Subject Actions"
                     />
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           ) : (
@@ -272,7 +276,8 @@ export default async function LibraryPage({
               <h3 className="font-medium">Create your first subject</h3>
               <p className="text-muted-foreground max-w-md text-sm">
                 Every new material needs a subject. LUMII suggests the topic
-                after it reads the material.
+                after it reads the material. Open a subject to manage its
+                topics.
               </p>
               <SubjectCreateDialog />
             </Card>

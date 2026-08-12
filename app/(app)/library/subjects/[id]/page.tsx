@@ -88,6 +88,7 @@ export default async function LibrarySubjectPage({
             id={subject.id}
             name={subject.name}
             redirectTo="/library?view=subjects"
+            triggerLabel="Subject Actions"
           />
         </div>
       </header>
@@ -117,7 +118,12 @@ export default async function LibrarySubjectPage({
                 >
                   <Plus className="size-4" /> Add Material
                 </Button>
-                <DeleteMenu kind="topic" id={topic.id} name={topic.name} />
+                <DeleteMenu
+                  kind="topic"
+                  id={topic.id}
+                  name={topic.name}
+                  triggerLabel="Topic Actions"
+                />
               </div>
             </div>
             {topic.materials.length ? (

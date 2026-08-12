@@ -23,6 +23,12 @@ export async function getCachedSubjectTree(userId: string) {
       id: true,
       name: true,
       color: true,
+      _count: {
+        select: {
+          topics: { where: { archivedAt: null } },
+          materials: true,
+        },
+      },
       topics: {
         where: { archivedAt: null },
         orderBy: { name: "asc" },

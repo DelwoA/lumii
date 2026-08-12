@@ -74,9 +74,12 @@ test("adding material asks for one organizational choice", async ({ page }) => {
   await expect(page.getByLabel("Title", { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("Topic", { exact: true })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Create New Subject" }).click();
+  await page.getByRole("button", { name: "Manage Subjects" }).click();
   await expect(
-    page.getByRole("heading", { name: "Create a Subject" }),
+    page.getByRole("heading", { name: "Manage Subjects" }),
   ).toBeVisible();
-  await expect(page.getByLabel("Subject Name")).toBeVisible();
+  await expect(page.getByLabel("New Subject")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Create & Select" }),
+  ).toBeVisible();
 });

@@ -24,6 +24,14 @@ export default async function NewMaterialPage({
   const selectedTopic = selectedSubject?.topics.find(
     (topic) => topic.id === requestedTopic,
   );
+  const creatorSubjects = subjects.map((subject) => ({
+    id: subject.id,
+    name: subject.name,
+    color: subject.color,
+    topics: subject.topics,
+    topicCount: subject._count.topics,
+    materialCount: subject._count.materials,
+  }));
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8">
@@ -36,7 +44,7 @@ export default async function NewMaterialPage({
         </Link>
       </nav>
       <MaterialCreator
-        initialSubjects={subjects}
+        initialSubjects={creatorSubjects}
         initialSubjectId={selectedSubject?.id ?? null}
         initialTopicId={selectedTopic?.id ?? null}
         source={first(query.source) ?? null}

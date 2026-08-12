@@ -46,21 +46,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 /**
- * A "⋯" actions menu (currently just Delete, with confirmation) for a subject
- * or topic. Hard-deletes via the server action; the user's materials are kept
- * (only unassigned). On a subject's own page, pass redirectTo to leave the page
- * after deletion; elsewhere the list just refreshes.
+ * An actions menu for a subject or topic. The visible organizer is removed,
+ * while materials and historical learning evidence remain available. On a
+ * subject's own page, pass redirectTo to leave after deletion; elsewhere the
+ * list just refreshes.
  */
 export function DeleteMenu({
   kind,
   id,
   name,
   redirectTo,
+  triggerLabel,
 }: {
   kind: "subject" | "topic";
   id: string;
   name: string;
   redirectTo?: string;
+  triggerLabel?: string;
 }) {
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -103,11 +105,13 @@ export function DeleteMenu({
         <DropdownMenuTrigger
           render={
             <Button
-              variant="ghost"
-              size="icon-sm"
+              variant={triggerLabel ? "outline" : "ghost"}
+              size={triggerLabel ? "sm" : "icon-sm"}
               aria-label={`${name} actions`}
+              className={triggerLabel ? "gap-2 whitespace-nowrap" : undefined}
             >
-              <MoreVertical className="size-4" />
+              <MoreVertical className="size-4" aria-hidden="true" />
+              {triggerLabel ? triggerLabel : null}
             </Button>
           }
         />
@@ -116,7 +120,7 @@ export function DeleteMenu({
             className="whitespace-nowrap"
             onClick={() => setRenameOpen(true)}
           >
-            <Pencil className="size-4" />
+            <Pencil className="size-4" aria-hidden="true" />
             Rename {kind}
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -124,7 +128,7 @@ export function DeleteMenu({
             className="whitespace-nowrap"
             onClick={() => setConfirmOpen(true)}
           >
-            <Trash2 className="size-4" />
+            <Trash2 className="size-4" aria-hidden="true" />
             Delete {kind}
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -165,8 +169,8 @@ export function DeleteMenu({
             <AlertDialogTitle>Delete this {kind}?</AlertDialogTitle>
             <AlertDialogDescription>
               {kind === "subject"
-                ? `This permanently deletes “${name}” and its topics. Your materials are kept (just unassigned). This can't be undone.`
-                : `This permanently deletes the topic “${name}”. Your materials are kept (just unassigned). This can't be undone.`}
+                ? `This removes “${name}” and its topics from your Library. Its materials move to Needs Setup; saved quiz attempts and mastery history remain. This can't be undone.`
+                : `This removes the topic “${name}”. Its materials become uncategorized in the subject; saved quiz attempts and mastery history remain. This can't be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
