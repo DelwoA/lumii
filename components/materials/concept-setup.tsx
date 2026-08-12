@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BrainCircuit, Check, Sprout } from "lucide-react";
 import { toast } from "sonner";
@@ -27,13 +27,16 @@ export function ConceptSetup({
   materialId,
   topicName,
   initialConcepts,
+  autoFocus,
 }: {
   materialId: string;
   topicName: string | null;
   initialConcepts: MaterialConcept[];
+  autoFocus?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const sectionRef = useRef<HTMLDivElement>(null);
   const [concepts, setConcepts] = useState(
     initialConcepts.map((concept) => ({ ...concept, selected: true })),
   );
@@ -41,6 +44,12 @@ export function ConceptSetup({
   const confirmed = concepts.filter(
     (concept) => concept.status === "CONFIRMED",
   );
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    sectionRef.current?.focus({ preventScroll: true });
+  }, [autoFocus]);
 
   function generate() {
     startTransition(async () => {
@@ -76,15 +85,33 @@ export function ConceptSetup({
 
   if (!topicName) {
     return (
-      <Card className="border-dashed p-5">
+      <Card
+        id="concept-setup"
+        ref={sectionRef}
+        tabIndex={-1}
+        className="border-dashed p-5 outline-none"
+      >
         <div className="flex gap-3">
           <Sprout className="text-primary mt-0.5 size-5 shrink-0" />
-          <div>
-            <h3 className="font-medium">Choose a topic to track mastery</h3>
+          <div className="flex-1">
+            <h3 className="font-medium">Choose Subject & Topic</h3>
             <p className="text-muted-foreground mt-1 text-sm">
-              Edit this material from the Materials page and assign it to a
-              subject and topic. LUMII can then map the concepts it teaches.
+              Organize this material here, then LUMII can map the concepts it
+              teaches.
             </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => {
+                const target = document.getElementById("material-organization");
+                target?.scrollIntoView({ behavior: "smooth", block: "center" });
+                target?.querySelector<HTMLElement>("button")?.focus();
+              }}
+            >
+              Choose Subject & Topic
+            </Button>
           </div>
         </div>
       </Card>
@@ -93,7 +120,12 @@ export function ConceptSetup({
 
   if (proposed.length === 0) {
     return (
-      <Card className="bg-secondary/35 p-5">
+      <Card
+        id="concept-setup"
+        ref={sectionRef}
+        tabIndex={-1}
+        className="bg-secondary/35 p-5 outline-none"
+      >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-3">
             {confirmed.length ? (
@@ -138,7 +170,12 @@ export function ConceptSetup({
           the rows in your mastery map.
         </p>
       </div>
-      <div className="divide-y">
+      <div
+        id="concept-setup"
+        ref={sectionRef}
+        tabIndex={-1}
+        className="divide-y outline-none"
+      >
         {proposed.map((concept, index) => (
           <div
             key={concept.id}

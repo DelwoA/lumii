@@ -19,8 +19,12 @@ export function MasteryPreview({ overview }: { overview: MasteryOverview }) {
               </p>
             </div>
           </div>
-          <Button variant="outline" render={<Link href="/materials" />}>
-            Open materials
+          <Button
+            nativeButton={false}
+            variant="outline"
+            render={<Link href="/library/new" />}
+          >
+            Add Material
           </Button>
         </div>
       </Card>
@@ -44,11 +48,12 @@ export function MasteryPreview({ overview }: { overview: MasteryOverview }) {
         </p>
         {recommendation?.materialId ? (
           <Button
+            nativeButton={false}
             className="mt-5 gap-2"
             variant="secondary"
             render={
               <Link
-                href={`/materials/${recommendation.materialId}?tab=quiz&focus=${recommendation.componentId}`}
+                href={`/library/materials/${recommendation.materialId}?tab=quiz&focus=${recommendation.componentId}`}
               />
             }
           >
@@ -68,6 +73,7 @@ export function MasteryPreview({ overview }: { overview: MasteryOverview }) {
             </h2>
           </div>
           <Button
+            nativeButton={false}
             variant="ghost"
             size="sm"
             render={<Link href="/progress/mastery" />}

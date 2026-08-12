@@ -15,6 +15,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -72,18 +79,26 @@ export function NoteCreateDialog({
             {subjects.length > 0 && (
               <div className="grid gap-2">
                 <Label htmlFor="n-subject">Subject (optional)</Label>
-                <select
-                  id="n-subject"
+                <Select
                   name="subjectId"
-                  className="border-input bg-background focus-visible:ring-ring h-9 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+                  defaultValue="none"
+                  items={Object.fromEntries([
+                    ["none", "None"],
+                    ...subjects.map((subject) => [subject.id, subject.name]),
+                  ])}
                 >
-                  <option value="">None</option>
-                  {subjects.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="n-subject" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {subjects.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
             <div className="grid gap-2">

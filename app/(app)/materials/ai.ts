@@ -64,7 +64,7 @@ export async function generateSummary(
     });
     await recordSessionActivity(user.id, "SUMMARY_GENERATED", summary.id);
     const celebration = await runAwardChecks(user.id, rankBefore);
-    revalidatePath(`/materials/${materialId}`);
+    revalidatePath(`/library/materials/${materialId}`);
     return { ok: true, celebration, xpAwarded };
   } catch {
     return {

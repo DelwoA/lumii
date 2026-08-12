@@ -18,8 +18,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  BookOpen,
-  FileText,
+  LibraryBig,
   CalendarDays,
   TrendingUp,
   Trophy,
@@ -40,6 +39,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import type { GamificationSummary } from "@/lib/gamification/service";
+import { isNavActive } from "@/lib/navigation";
 
 function titleCase(s: string): string {
   return s.charAt(0) + s.slice(1).toLowerCase();
@@ -47,8 +47,7 @@ function titleCase(s: string): string {
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/subjects", label: "Subjects", icon: BookOpen },
-  { href: "/materials", label: "Materials", icon: FileText },
+  { href: "/library", label: "Study Library", icon: LibraryBig },
   { href: "/timetable", label: "Timetable", icon: CalendarDays },
   { href: "/progress", label: "Progress", icon: TrendingUp },
   { href: "/achievements", label: "Achievements", icon: Trophy },
@@ -74,9 +73,7 @@ export function AppSidebar({ summary }: { summary?: GamificationSummary }) {
           <SidebarGroupContent>
             <SidebarMenu className="gap-2">
               {NAV.map((item) => {
-                const active =
-                  pathname === item.href ||
-                  pathname.startsWith(item.href + "/");
+                const active = isNavActive(pathname, item.href);
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
@@ -103,7 +100,10 @@ export function AppSidebar({ summary }: { summary?: GamificationSummary }) {
                 {summary.totalXp.toLocaleString()} XP
               </span>
             </div>
-            <Progress value={summary.progress.progress * 100} className="mt-1.5 h-1.5" />
+            <Progress
+              value={summary.progress.progress * 100}
+              className="mt-1.5 h-1.5"
+            />
             <div className="text-muted-foreground mt-1.5 flex items-center gap-1 text-xs">
               <Flame className="text-primary size-3" />
               {summary.currentStreak}-day streak

@@ -11,7 +11,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { MoreVertical, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,7 +29,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { deleteSubject, deleteTopic } from "@/app/(app)/subjects/actions";
+import {
+  deleteSubject,
+  deleteTopic,
+  renameSubject,
+  renameTopic,
+} from "@/app/(app)/subjects/actions";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 /**
  * A "⋯" actions menu (currently just Delete, with confirmation) for a subject
@@ -50,11 +64,14 @@ export function DeleteMenu({
 }) {
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [nextName, setNextName] = useState(name);
   const [busy, setBusy] = useState(false);
 
   async function onConfirm() {
     setBusy(true);
-    const res = kind === "subject" ? await deleteSubject(id) : await deleteTopic(id);
+    const res =
+      kind === "subject" ? await deleteSubject(id) : await deleteTopic(id);
     setBusy(false);
     if (res.ok) {
       toast.success(kind === "subject" ? "Subject deleted" : "Topic deleted");
@@ -64,6 +81,20 @@ export function DeleteMenu({
     } else {
       toast.error(res.error ?? "Could not delete");
     }
+  }
+
+  async function onRename() {
+    if (!nextName.trim()) return;
+    setBusy(true);
+    const res =
+      kind === "subject"
+        ? await renameSubject(id, nextName)
+        : await renameTopic(id, nextName);
+    setBusy(false);
+    if (!res.ok) return toast.error(res.error ?? "Could not rename");
+    toast.success(kind === "subject" ? "Subject renamed" : "Topic renamed");
+    setRenameOpen(false);
+    router.refresh();
   }
 
   return (
@@ -80,9 +111,17 @@ export function DeleteMenu({
             </Button>
           }
         />
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="w-max min-w-max">
+          <DropdownMenuItem
+            className="whitespace-nowrap"
+            onClick={() => setRenameOpen(true)}
+          >
+            <Pencil className="size-4" />
+            Rename {kind}
+          </DropdownMenuItem>
           <DropdownMenuItem
             variant="destructive"
+            className="whitespace-nowrap"
             onClick={() => setConfirmOpen(true)}
           >
             <Trash2 className="size-4" />
@@ -90,6 +129,36 @@ export function DeleteMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename {kind}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor={`rename-${kind}-${id}`}>Name</Label>
+            <Input
+              id={`rename-${kind}-${id}`}
+              value={nextName}
+              onChange={(event) => setNextName(event.target.value)}
+              maxLength={60}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRenameOpen(false)}
+              disabled={busy}
+            >
+              Cancel
+            </Button>
+            <Button onClick={onRename} disabled={busy || !nextName.trim()}>
+              {busy ? "Saving…" : "Save name"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>

@@ -33,6 +33,7 @@ export function MaterialAISection({
   concepts,
   defaultTab,
   initialFocusComponentId,
+  autoFocusConcepts,
 }: {
   materialId: string;
   materialTitle: string;
@@ -41,6 +42,7 @@ export function MaterialAISection({
   concepts: MaterialConcept[];
   defaultTab: "summary" | "quiz" | "chat";
   initialFocusComponentId?: string;
+  autoFocusConcepts?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -69,6 +71,7 @@ export function MaterialAISection({
         materialId={materialId}
         topicName={topicName}
         initialConcepts={concepts}
+        autoFocus={autoFocusConcepts}
       />
       <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList>

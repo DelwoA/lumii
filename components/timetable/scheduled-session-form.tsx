@@ -171,15 +171,19 @@ export function ScheduledSessionForm({
             </div>
 
             <div className="space-y-2">
-              <Label>Subject</Label>
+              <Label htmlFor="ts-subject">Subject</Label>
               <Select
                 value={subjectId}
+                items={Object.fromEntries([
+                  [NONE, "No subject"],
+                  ...subjects.map((subject) => [subject.id, subject.name]),
+                ])}
                 onValueChange={(v) => {
                   setSubjectId(v ?? NONE);
                   setTopicId(NONE);
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger id="ts-subject">
                   <SelectValue placeholder="Optional" />
                 </SelectTrigger>
                 <SelectContent>
@@ -195,12 +199,16 @@ export function ScheduledSessionForm({
 
             {topics.length > 0 ? (
               <div className="space-y-2">
-                <Label>Topic</Label>
+                <Label htmlFor="ts-topic">Topic</Label>
                 <Select
                   value={topicId}
+                  items={Object.fromEntries([
+                    [NONE, "No topic"],
+                    ...topics.map((topic) => [topic.id, topic.name]),
+                  ])}
                   onValueChange={(v) => setTopicId(v ?? NONE)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="ts-topic">
                     <SelectValue placeholder="Optional" />
                   </SelectTrigger>
                   <SelectContent>

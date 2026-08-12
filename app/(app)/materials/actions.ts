@@ -48,8 +48,18 @@ import { transcribeAudio } from "@/lib/ai/transcribe";
 import { indexMaterial } from "@/lib/rag/service";
 import type { ActionState } from "@/lib/forms";
 
-const OK: ActionState = { ok: true };
-function fail(error: string): ActionState {
+export type MaterialMutationResult =
+  | { ok: true; materialId: string }
+  | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
+
+function ok(materialId: string): MaterialMutationResult {
+  return { ok: true, materialId };
+}
+function fail(
+  error: string,
+  fieldErrors?: Record<string, string[]>,
+): MaterialMutationResult {
+  if (fieldErrors) return { ok: false, error, fieldErrors };
   return { ok: false, error };
 }
 
@@ -59,21 +69,18 @@ async function assertScopeOwned(
   subjectId?: string,
   topicId?: string,
 ): Promise<boolean> {
-  if (subjectId) {
-    const s = await prisma.subject.findFirst({
-      where: { id: subjectId, userId, archivedAt: null },
-      select: { id: true },
-    });
-    if (!s) return false;
-  }
-  if (topicId) {
-    const t = await prisma.topic.findFirst({
-      where: { id: topicId, userId, ...(subjectId ? { subjectId } : {}) },
-      select: { id: true },
-    });
-    if (!t) return false;
-  }
-  return true;
+  if (!subjectId || !topicId) return false;
+  const topic = await prisma.topic.findFirst({
+    where: {
+      id: topicId,
+      subjectId,
+      userId,
+      archivedAt: null,
+      subject: { userId, archivedAt: null },
+    },
+    select: { id: true },
+  });
+  return Boolean(topic);
 }
 
 /** Only file materials (not notes) participate in the R2 upload flow. */
@@ -143,7 +150,7 @@ async function markVerified(
   materialId: string,
   type: MaterialType,
   result: { valid: boolean; size: number },
-): Promise<ActionState> {
+): Promise<MaterialMutationResult> {
   const validStatus: MaterialStatus =
     type === "AUDIO" ? "PENDING_TRANSCRIPTION" : "READY";
   await prisma.material.update({
@@ -153,8 +160,11 @@ async function markVerified(
       sizeBytes: result.size || undefined,
     },
   });
-  revalidatePath("/materials");
-  return result.valid ? OK : fail("Uploaded file failed validation");
+  revalidatePath("/library");
+  revalidatePath(`/library/materials/${materialId}`);
+  return result.valid
+    ? ok(materialId)
+    : fail("Uploaded file failed validation");
 }
 
 export type RequestUploadResult =
@@ -168,7 +178,10 @@ export async function requestUpload(
   const user = await requireDbUser();
   const parsed = requestUploadInput.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid upload" };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid upload",
+    };
   }
   const { subjectId, topicId, fileName, contentType } = parsed.data;
 
@@ -206,7 +219,10 @@ export async function startMultipartUpload(
   const user = await requireDbUser();
   const parsed = requestUploadInput.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid upload" };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid upload",
+    };
   }
   const { subjectId, topicId, fileName, contentType, sizeBytes } = parsed.data;
 
@@ -224,7 +240,10 @@ export async function startMultipartUpload(
   try {
     uploadId = await createMultipartUpload(key, contentType);
   } catch {
-    return { ok: false, error: "Could not start the upload. Please try again." };
+    return {
+      ok: false,
+      error: "Could not start the upload. Please try again.",
+    };
   }
 
   let partUrls: string[];
@@ -236,7 +255,10 @@ export async function startMultipartUpload(
     );
   } catch {
     await abortMultipartUpload(key, uploadId).catch(() => {});
-    return { ok: false, error: "Could not start the upload. Please try again." };
+    return {
+      ok: false,
+      error: "Could not start the upload. Please try again.",
+    };
   }
 
   let materialId: string;
@@ -245,15 +267,24 @@ export async function startMultipartUpload(
   } catch {
     // Don't leave an orphaned multipart upload in R2 if the row never persisted.
     await abortMultipartUpload(key, uploadId).catch(() => {});
-    return { ok: false, error: "Could not start the upload. Please try again." };
+    return {
+      ok: false,
+      error: "Could not start the upload. Please try again.",
+    };
   }
-  return { ok: true, materialId, uploadId, partUrls, partSize: MULTIPART_PART_SIZE };
+  return {
+    ok: true,
+    materialId,
+    uploadId,
+    partUrls,
+    partSize: MULTIPART_PART_SIZE,
+  };
 }
 
 /** Complete a multipart upload, then verify + mark the material READY/FAILED. */
 export async function completeUpload(
   input: CompleteMultipartInput,
-): Promise<ActionState> {
+): Promise<MaterialMutationResult> {
   const user = await requireDbUser();
   const parsed = completeMultipartInput.safeParse(input);
   if (!parsed.success) {
@@ -283,7 +314,7 @@ export async function completeUpload(
 /** Abandon an in-progress multipart upload: abort in R2, then drop the row. */
 export async function abortUpload(
   input: AbortMultipartInput,
-): Promise<ActionState> {
+): Promise<MaterialMutationResult> {
   const user = await requireDbUser();
   const parsed = abortMultipartInput.safeParse(input);
   if (!parsed.success) return fail("Invalid request");
@@ -298,7 +329,7 @@ export async function abortUpload(
     },
     select: { id: true, r2Key: true },
   });
-  if (!material?.r2Key) return OK; // Already cleaned up; abort is idempotent.
+  if (!material?.r2Key) return ok(materialId); // Already cleaned up; abort is idempotent.
 
   // Delete the row only once R2 has confirmed the abort. If the abort fails we
   // keep the PENDING_UPLOAD row as the record that this key still needs cleanup.
@@ -308,12 +339,38 @@ export async function abortUpload(
     return fail("Could not cancel the upload. Please try again.");
   }
   await prisma.material.delete({ where: { id: material.id } }).catch(() => {});
-  revalidatePath("/materials");
-  return OK;
+  revalidatePath("/library");
+  return ok(materialId);
+}
+
+/** Owner-scoped cleanup for an interrupted single-PUT or multipart setup. */
+export async function cancelPendingUpload(
+  materialId: string,
+): Promise<MaterialMutationResult> {
+  const user = await requireDbUser();
+  const material = await prisma.material.findFirst({
+    where: { id: materialId, userId: user.id, status: "PENDING_UPLOAD" },
+    select: { id: true, r2Key: true },
+  });
+  if (!material) return ok(materialId);
+  if (material.r2Key) {
+    try {
+      await deleteObject(material.r2Key);
+    } catch {
+      return fail("Could not clean up the cancelled upload. Please try again.");
+    }
+  }
+  await prisma.material.deleteMany({
+    where: { id: material.id, userId: user.id, status: "PENDING_UPLOAD" },
+  });
+  revalidatePath("/library");
+  return ok(material.id);
 }
 
 /** Single-PUT finalize: verify the object in R2 and mark READY/FAILED. */
-export async function finalizeUpload(materialId: string): Promise<ActionState> {
+export async function finalizeUpload(
+  materialId: string,
+): Promise<MaterialMutationResult> {
   const user = await requireDbUser();
   const material = await prisma.material.findFirst({
     where: { id: materialId, userId: user.id, type: { in: FILE_TYPES } },
@@ -344,7 +401,7 @@ const TRANSCRIBE_TIMEOUT_MS = 240 * 1000;
  */
 export async function transcribeAudioAction(
   materialId: string,
-): Promise<ActionState> {
+): Promise<MaterialMutationResult> {
   const user = await requireDbUser();
   const material = await prisma.material.findFirst({
     where: { id: materialId, userId: user.id, type: "AUDIO" },
@@ -371,12 +428,12 @@ export async function transcribeAudioAction(
     return fail("This audio is already being transcribed.");
   }
 
-  const failWith = async (message: string): Promise<ActionState> => {
+  const failWith = async (message: string): Promise<MaterialMutationResult> => {
     await prisma.material.update({
       where: { id: material.id },
       data: { status: "FAILED" },
     });
-    revalidatePath(`/materials/${material.id}`);
+    revalidatePath(`/library/materials/${material.id}`);
     return fail(message);
   };
 
@@ -408,9 +465,9 @@ export async function transcribeAudioAction(
     } catch {
       // Indexing is non-critical; the transcript is still usable without it.
     }
-    revalidatePath("/materials");
-    revalidatePath(`/materials/${material.id}`);
-    return OK;
+    revalidatePath("/library");
+    revalidatePath(`/library/materials/${material.id}`);
+    return ok(material.id);
   } catch {
     return failWith("Could not transcribe the audio. Please try again.");
   }
@@ -420,7 +477,7 @@ export async function transcribeAudioAction(
 export async function createNote(
   _prev: ActionState,
   formData: FormData,
-): Promise<ActionState> {
+): Promise<MaterialMutationResult> {
   const user = await requireDbUser();
   const parsed = noteInput.safeParse({
     title: formData.get("title"),
@@ -432,7 +489,11 @@ export async function createNote(
     return fail(parsed.error.issues[0]?.message ?? "Invalid note");
   }
   if (
-    !(await assertScopeOwned(user.id, parsed.data.subjectId, parsed.data.topicId))
+    !(await assertScopeOwned(
+      user.id,
+      parsed.data.subjectId,
+      parsed.data.topicId,
+    ))
   ) {
     return fail("Subject or topic not found");
   }
@@ -454,12 +515,93 @@ export async function createNote(
   } catch {
     // Indexing is non-critical; the note is still usable without it.
   }
-  revalidatePath("/materials");
-  return OK;
+  revalidatePath("/library");
+  return ok(material.id);
+}
+
+/** Move a material to an owned topic and invalidate only its old concept links. */
+export async function updateMaterialOrganization(input: {
+  materialId: string;
+  subjectId: string;
+  topicId: string;
+}): Promise<MaterialMutationResult> {
+  const user = await requireDbUser();
+  if (!input.materialId || !input.subjectId || !input.topicId) {
+    return fail("Choose a subject and topic.", {
+      subjectId: input.subjectId ? [] : ["Subject is required"],
+      topicId: input.topicId ? [] : ["Topic is required"],
+    });
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const [material, topic] = await Promise.all([
+        tx.material.findFirst({
+          where: { id: input.materialId, userId: user.id },
+          select: { id: true, subjectId: true, topicId: true },
+        }),
+        tx.topic.findFirst({
+          where: {
+            id: input.topicId,
+            subjectId: input.subjectId,
+            userId: user.id,
+            archivedAt: null,
+            subject: { userId: user.id, archivedAt: null },
+          },
+          select: { id: true },
+        }),
+      ]);
+      if (!material) throw new Error("MATERIAL_NOT_FOUND");
+      if (!topic) throw new Error("TOPIC_MISMATCH");
+      if (
+        material.subjectId === input.subjectId &&
+        material.topicId === input.topicId
+      ) {
+        return;
+      }
+
+      const oldLinks = await tx.materialKnowledgeComponent.findMany({
+        where: { materialId: material.id, userId: user.id },
+        select: { knowledgeComponentId: true },
+      });
+      await tx.materialKnowledgeComponent.deleteMany({
+        where: { materialId: material.id, userId: user.id },
+      });
+      await tx.material.update({
+        where: { id: material.id },
+        data: { subjectId: input.subjectId, topicId: input.topicId },
+      });
+      const oldIds = oldLinks.map((link) => link.knowledgeComponentId);
+      if (oldIds.length) {
+        await tx.knowledgeComponent.deleteMany({
+          where: {
+            id: { in: oldIds },
+            userId: user.id,
+            materials: { none: {} },
+            questionAttempts: { none: {} },
+          },
+        });
+      }
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "MATERIAL_NOT_FOUND") return fail("Material not found.");
+    if (message === "TOPIC_MISMATCH") {
+      return fail("That topic does not belong to the selected subject.");
+    }
+    return fail("Could not update the material organization.");
+  }
+
+  revalidatePath("/library");
+  revalidatePath(`/library/materials/${input.materialId}`);
+  revalidatePath("/progress/mastery");
+  return ok(input.materialId);
 }
 
 /** Delete a material: R2 object first (retry-safe), then the DB row (cascades summaries). */
-export async function deleteMaterial(materialId: string): Promise<ActionState> {
+export async function deleteMaterial(
+  materialId: string,
+): Promise<MaterialMutationResult> {
   const user = await requireDbUser();
   const material = await prisma.material.findFirst({
     where: { id: materialId, userId: user.id },
@@ -475,6 +617,6 @@ export async function deleteMaterial(materialId: string): Promise<ActionState> {
     }
   }
   await prisma.material.delete({ where: { id: material.id } });
-  revalidatePath("/materials");
-  return OK;
+  revalidatePath("/library");
+  return ok(material.id);
 }

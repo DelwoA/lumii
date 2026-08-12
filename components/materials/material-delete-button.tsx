@@ -35,7 +35,7 @@ export function MaterialDeleteButton({ materialId }: { materialId: string }) {
     setBusy(false);
     if (res.ok) {
       toast.success("Material deleted");
-      router.push("/materials");
+      router.push("/library");
     } else {
       toast.error(res.error ?? "Could not delete");
     }
@@ -45,7 +45,11 @@ export function MaterialDeleteButton({ materialId }: { materialId: string }) {
     <AlertDialog>
       <AlertDialogTrigger
         render={
-          <Button variant="outline" size="sm" className="text-destructive gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive gap-2"
+          >
             <Trash2 className="size-4" />
             Delete
           </Button>

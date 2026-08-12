@@ -18,6 +18,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -213,7 +220,12 @@ export function MaterialUploadDialog({
     setBusy(true);
     setProgress(null);
     try {
-      const args: UploadArgs = { title, subjectId, file, contentType: file.type };
+      const args: UploadArgs = {
+        title,
+        subjectId,
+        file,
+        contentType: file.type,
+      };
       const materialId =
         file.size > MULTIPART_THRESHOLD
           ? await uploadMultipart(args)
@@ -300,18 +312,26 @@ export function MaterialUploadDialog({
             {subjects.length > 0 && (
               <div className="grid gap-2">
                 <Label htmlFor="m-subject">Subject (optional)</Label>
-                <select
-                  id="m-subject"
+                <Select
                   name="subjectId"
-                  className="border-input bg-background focus-visible:ring-ring h-9 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+                  defaultValue="none"
+                  items={Object.fromEntries([
+                    ["none", "None"],
+                    ...subjects.map((subject) => [subject.id, subject.name]),
+                  ])}
                 >
-                  <option value="">None</option>
-                  {subjects.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="m-subject" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {subjects.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
             {progress !== null && (

@@ -15,6 +15,13 @@ import { ProgressExportButtons } from "@/components/progress/progress-export-but
 import { getMoodSummary, purgeExpiredMoodCheckins } from "@/lib/mood/service";
 import { getMasteryOverview } from "@/lib/mastery/service";
 import { MasteryPreview } from "@/components/progress/mastery-preview";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const dynamic = "force-dynamic";
 
@@ -118,17 +125,26 @@ export default async function ProgressPage({
             <label htmlFor="progress-range" className="text-xs font-medium">
               Date range
             </label>
-            <select
-              id="progress-range"
+            <Select
               name="range"
               defaultValue={range}
-              className="border-input bg-card focus-visible:border-ring focus-visible:ring-ring/30 h-9 rounded-lg border px-3 text-base outline-none focus-visible:ring-3 md:text-sm"
+              items={{
+                "30d": "Last 30 days",
+                "90d": "Last 90 days",
+                all: "All time",
+                custom: "Custom dates",
+              }}
             >
-              <option value="30d">Last 30 days</option>
-              <option value="90d">Last 90 days</option>
-              <option value="all">All time</option>
-              <option value="custom">Custom dates</option>
-            </select>
+              <SelectTrigger id="progress-range" className="w-full min-w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="90d">Last 90 days</SelectItem>
+                <SelectItem value="all">All time</SelectItem>
+                <SelectItem value="custom">Custom dates</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <label htmlFor="progress-from" className="text-xs font-medium">

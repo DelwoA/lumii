@@ -115,7 +115,9 @@ export function QuizHistory({
           Complete a concept-aligned quiz from a material, or reset the filters
           to see earlier attempts.
         </p>
-        <Button render={<Link href="/materials" />}>Open materials</Button>
+        <Button nativeButton={false} render={<Link href="/library/new" />}>
+          Add Material
+        </Button>
       </Card>
     );
   }

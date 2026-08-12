@@ -106,7 +106,7 @@ export async function proposeMaterialConcepts(
         });
       }
     });
-    revalidatePath(`/materials/${materialId}`);
+    revalidatePath(`/library/materials/${materialId}`);
     return { ok: true };
   } catch {
     return {
@@ -184,7 +184,7 @@ export async function confirmMaterialConcepts(
         }
       }
     });
-    revalidatePath(`/materials/${materialId}`);
+    revalidatePath(`/library/materials/${materialId}`);
     revalidatePath("/progress/mastery");
     return { ok: true };
   } catch (error) {

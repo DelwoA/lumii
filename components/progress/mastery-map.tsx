@@ -127,7 +127,12 @@ export function MasteryMap({ overview }: { overview: MasteryOverview }) {
           Open a material, assign it to a topic, and confirm its concept map.
           Your first concept-aligned quiz will create the first estimates.
         </p>
-        <Button render={<Link href="/materials" />}>Open materials</Button>
+        <Button
+          nativeButton={false}
+          render={<Link href="/library?view=setup" />}
+        >
+          Finish setup
+        </Button>
       </Card>
     );
   }
@@ -247,10 +252,11 @@ export function MasteryMap({ overview }: { overview: MasteryOverview }) {
             </p>
             {selected.materialId ? (
               <Button
+                nativeButton={false}
                 className="mt-4 w-full justify-between"
                 render={
                   <Link
-                    href={`/materials/${selected.materialId}?tab=quiz&focus=${selected.componentId}`}
+                    href={`/library/materials/${selected.materialId}?tab=quiz&focus=${selected.componentId}`}
                   />
                 }
               >

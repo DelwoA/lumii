@@ -145,7 +145,7 @@ export default async function DashboardPage() {
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-medium">Recent materials</h2>
             <Link
-              href="/materials"
+              href="/library"
               className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs"
             >
               All <ArrowRight className="size-3.5" />
@@ -155,10 +155,10 @@ export default async function DashboardPage() {
             <p className="text-muted-foreground text-sm">
               No materials yet.{" "}
               <Link
-                href="/materials"
+                href="/library/new"
                 className="text-primary underline-offset-4 hover:underline"
               >
-                Upload one
+                Add one
               </Link>
               .
             </p>
@@ -167,7 +167,7 @@ export default async function DashboardPage() {
               {recentMaterials.map((m) => (
                 <li key={m.id}>
                   <Link
-                    href={`/materials/${m.id}`}
+                    href={`/library/materials/${m.id}`}
                     className="hover:bg-muted flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
                   >
                     {m.type === "NOTE" ? (
@@ -193,16 +193,16 @@ export default async function DashboardPage() {
             <span className="text-sm font-medium">Plan a session</span>
           </Card>
         </Link>
-        <Link href="/materials">
+        <Link href="/library/new">
           <Card className="hover:border-primary/50 flex items-center gap-3 p-4 transition">
             <Upload className="text-primary size-5" />
-            <span className="text-sm font-medium">Upload material</span>
+            <span className="text-sm font-medium">Add Material</span>
           </Card>
         </Link>
-        <Link href="/subjects">
+        <Link href="/library?view=subjects">
           <Card className="hover:border-primary/50 flex items-center gap-3 p-4 transition">
             <BookOpen className="text-primary size-5" />
-            <span className="text-sm font-medium">Manage subjects</span>
+            <span className="text-sm font-medium">Organize Subjects</span>
           </Card>
         </Link>
       </div>

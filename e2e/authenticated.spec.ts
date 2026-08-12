@@ -35,3 +35,32 @@ test("timetable view choice is URL-backed", async ({ page }) => {
   await page.getByRole("button", { name: "List" }).click();
   await expect(page).toHaveURL(/view=list/);
 });
+
+test("Study Library consolidates materials, subjects, and setup", async ({
+  page,
+}) => {
+  await page.goto("/library");
+  await expect(
+    page.getByRole("heading", { name: "Study Library" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Study Library", exact: true }),
+  ).toHaveAttribute("data-active", "true");
+
+  await page.getByRole("link", { name: "Subjects & Topics" }).click();
+  await expect(page).toHaveURL(/\/library\?view=subjects/);
+  await page.getByRole("link", { name: /Needs Setup/ }).click();
+  await expect(page).toHaveURL(/\/library\?view=setup/);
+});
+
+test("legacy learning-content routes redirect permanently to Library", async ({
+  page,
+}) => {
+  const materials = await page.request.get("/materials", { maxRedirects: 0 });
+  expect(materials.status()).toBe(308);
+  expect(materials.headers().location).toBe("/library");
+
+  const subjects = await page.request.get("/subjects", { maxRedirects: 0 });
+  expect(subjects.status()).toBe(308);
+  expect(subjects.headers().location).toBe("/library?view=subjects");
+});

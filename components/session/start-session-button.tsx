@@ -15,12 +15,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useSessionStore } from "@/lib/stores/session-store";
 import { getSessionSetupOptionsAction } from "@/app/(app)/sessions/actions";
 import type { SessionSetupOption } from "@/lib/sessions/types";
 
-const fieldClass =
-  "h-9 w-full rounded-lg border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 md:text-sm";
+const NONE = "none";
 
 export function StartSessionButton() {
   const { active, hydrated, starting, start } = useSessionStore();
@@ -30,8 +36,8 @@ export function StartSessionButton() {
   const [title, setTitle] = useState("Focused study");
   const [goal, setGoal] = useState("");
   const [minutes, setMinutes] = useState(25);
-  const [subjectId, setSubjectId] = useState("");
-  const [topicId, setTopicId] = useState("");
+  const [subjectId, setSubjectId] = useState(NONE);
+  const [topicId, setTopicId] = useState(NONE);
 
   if (!hydrated || active) return null;
 
@@ -52,8 +58,8 @@ export function StartSessionButton() {
       title: title.trim(),
       goal: goal.trim() || null,
       targetDurationSec: minutes * 60,
-      subjectId: subjectId || null,
-      topicId: topicId || null,
+      subjectId: subjectId === NONE ? null : subjectId,
+      topicId: topicId === NONE ? null : topicId,
     });
     if (res.ok) {
       setOpen(false);
@@ -105,39 +111,53 @@ export function StartSessionButton() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="session-subject">Subject (optional)</Label>
-                <select
-                  id="session-subject"
-                  className={fieldClass}
+                <Select
                   value={subjectId}
-                  onChange={(event) => {
-                    setSubjectId(event.target.value);
-                    setTopicId("");
+                  items={Object.fromEntries([
+                    [NONE, "No subject"],
+                    ...options.map((subject) => [subject.id, subject.name]),
+                  ])}
+                  onValueChange={(value) => {
+                    setSubjectId(value ?? NONE);
+                    setTopicId(NONE);
                   }}
                 >
-                  <option value="">No subject</option>
-                  {options.map((subject) => (
-                    <option key={subject.id} value={subject.id}>
-                      {subject.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="session-subject" className="w-full">
+                    <SelectValue placeholder="No subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>No subject</SelectItem>
+                    {options.map((subject) => (
+                      <SelectItem key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="session-topic">Topic (optional)</Label>
-                <select
-                  id="session-topic"
-                  className={fieldClass}
+                <Select
                   value={topicId}
-                  disabled={!subjectId}
-                  onChange={(event) => setTopicId(event.target.value)}
+                  items={Object.fromEntries([
+                    [NONE, "No topic"],
+                    ...topics.map((topic) => [topic.id, topic.name]),
+                  ])}
+                  disabled={subjectId === NONE}
+                  onValueChange={(value) => setTopicId(value ?? NONE)}
                 >
-                  <option value="">No topic</option>
-                  {topics.map((topic) => (
-                    <option key={topic.id} value={topic.id}>
-                      {topic.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="session-topic" className="w-full">
+                    <SelectValue placeholder="No topic" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>No topic</SelectItem>
+                    {topics.map((topic) => (
+                      <SelectItem key={topic.id} value={topic.id}>
+                        {topic.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="space-y-2">

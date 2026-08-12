@@ -17,6 +17,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -189,19 +196,26 @@ export function QuizRunner({
           <Label htmlFor="quiz-focus" className="text-xs">
             Practice focus
           </Label>
-          <select
-            id="quiz-focus"
+          <Select
             value={focusComponentId}
-            onChange={(event) => setFocusComponentId(event.target.value)}
-            className="border-input bg-card focus-visible:border-ring focus-visible:ring-ring/30 mt-1.5 h-10 w-full rounded-lg border px-3 text-sm outline-none focus-visible:ring-3"
+            items={Object.fromEntries([
+              ["mixed", "Mixed concepts"],
+              ...concepts.map((concept) => [concept.id, concept.name]),
+            ])}
+            onValueChange={(value) => setFocusComponentId(value ?? "mixed")}
           >
-            <option value="mixed">Mixed concepts</option>
-            {concepts.map((concept) => (
-              <option key={concept.id} value={concept.id}>
-                {concept.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="quiz-focus" className="mt-1.5 w-full">
+              <SelectValue placeholder="Mixed concepts" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="mixed">Mixed concepts</SelectItem>
+              {concepts.map((concept) => (
+                <SelectItem key={concept.id} value={concept.id}>
+                  {concept.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex flex-wrap justify-center gap-2">
           <Button onClick={() => onGenerate("STANDARD")} className="gap-2">

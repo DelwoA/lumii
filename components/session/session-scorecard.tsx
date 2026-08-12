@@ -116,6 +116,7 @@ export function SessionScorecard({
             Done
           </Button>
           <Button
+            nativeButton={false}
             render={<Link href={`/progress?session=${result.sessionId}`} />}
           >
             View in progress

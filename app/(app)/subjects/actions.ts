@@ -20,6 +20,56 @@ function fail(error: string): ActionState {
   return { ok: false, error };
 }
 
+export type OrganizerActionResult =
+  | { ok: true; id: string; name: string }
+  | { ok: false; error: string };
+
+/** Small, typed actions used by the material organizer's inline controls. */
+export async function createOrganizerSubject(input: {
+  name: string;
+}): Promise<OrganizerActionResult> {
+  const user = await requireDbUser();
+  const parsed = subjectInput.safeParse({ name: input.name });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid subject",
+    };
+  }
+  const subject = await prisma.subject.create({
+    data: { userId: user.id, name: parsed.data.name },
+    select: { id: true, name: true },
+  });
+  revalidatePath("/library");
+  return { ok: true, id: subject.id, name: subject.name };
+}
+
+export async function createOrganizerTopic(input: {
+  subjectId: string;
+  name: string;
+}): Promise<OrganizerActionResult> {
+  const user = await requireDbUser();
+  const parsed = topicInput.safeParse({ name: input.name });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid topic",
+    };
+  }
+  const subject = await prisma.subject.findFirst({
+    where: { id: input.subjectId, userId: user.id, archivedAt: null },
+    select: { id: true },
+  });
+  if (!subject) return { ok: false, error: "Subject not found" };
+  const topic = await prisma.topic.create({
+    data: { userId: user.id, subjectId: subject.id, name: parsed.data.name },
+    select: { id: true, name: true },
+  });
+  revalidatePath("/library");
+  revalidatePath(`/library/subjects/${subject.id}`);
+  return { ok: true, id: topic.id, name: topic.name };
+}
+
 export async function createSubject(
   _prev: ActionState,
   formData: FormData,
@@ -35,7 +85,7 @@ export async function createSubject(
   await prisma.subject.create({
     data: { userId: user.id, name: parsed.data.name, color: parsed.data.color },
   });
-  revalidatePath("/subjects");
+  revalidatePath("/library");
   return OK;
 }
 
@@ -47,7 +97,25 @@ export async function archiveSubject(subjectId: string): Promise<ActionState> {
     data: { archivedAt: new Date() },
   });
   if (res.count === 0) return fail("Subject not found");
-  revalidatePath("/subjects");
+  revalidatePath("/library");
+  return OK;
+}
+
+export async function renameSubject(
+  subjectId: string,
+  name: string,
+): Promise<ActionState> {
+  const user = await requireDbUser();
+  const parsed = subjectInput.safeParse({ name });
+  if (!parsed.success)
+    return fail(parsed.error.issues[0]?.message ?? "Invalid name");
+  const result = await prisma.subject.updateMany({
+    where: { id: subjectId, userId: user.id, archivedAt: null },
+    data: { name: parsed.data.name },
+  });
+  if (!result.count) return fail("Subject not found");
+  revalidatePath("/library");
+  revalidatePath(`/library/subjects/${subjectId}`);
   return OK;
 }
 
@@ -62,7 +130,7 @@ export async function deleteSubject(subjectId: string): Promise<ActionState> {
     where: { id: subjectId, userId: user.id },
   });
   if (res.count === 0) return fail("Subject not found");
-  revalidatePath("/subjects");
+  revalidatePath("/library");
   return OK;
 }
 
@@ -85,7 +153,8 @@ export async function createTopic(
   await prisma.topic.create({
     data: { subjectId, userId: user.id, name: parsed.data.name },
   });
-  revalidatePath(`/subjects/${subjectId}`);
+  revalidatePath("/library");
+  revalidatePath(`/library/subjects/${subjectId}`);
   return OK;
 }
 
@@ -100,7 +169,30 @@ export async function archiveTopic(topicId: string): Promise<ActionState> {
     where: { id: topicId, userId: user.id },
     data: { archivedAt: new Date() },
   });
-  revalidatePath(`/subjects/${topic.subjectId}`);
+  revalidatePath("/library");
+  revalidatePath(`/library/subjects/${topic.subjectId}`);
+  return OK;
+}
+
+export async function renameTopic(
+  topicId: string,
+  name: string,
+): Promise<ActionState> {
+  const user = await requireDbUser();
+  const parsed = topicInput.safeParse({ name });
+  if (!parsed.success)
+    return fail(parsed.error.issues[0]?.message ?? "Invalid name");
+  const topic = await prisma.topic.findFirst({
+    where: { id: topicId, userId: user.id, archivedAt: null },
+    select: { subjectId: true },
+  });
+  if (!topic) return fail("Topic not found");
+  await prisma.topic.updateMany({
+    where: { id: topicId, userId: user.id, archivedAt: null },
+    data: { name: parsed.data.name },
+  });
+  revalidatePath("/library");
+  revalidatePath(`/library/subjects/${topic.subjectId}`);
   return OK;
 }
 
@@ -116,6 +208,7 @@ export async function deleteTopic(topicId: string): Promise<ActionState> {
   });
   if (!topic) return fail("Topic not found");
   await prisma.topic.deleteMany({ where: { id: topicId, userId: user.id } });
-  revalidatePath(`/subjects/${topic.subjectId}`);
+  revalidatePath("/library");
+  revalidatePath(`/library/subjects/${topic.subjectId}`);
   return OK;
 }
