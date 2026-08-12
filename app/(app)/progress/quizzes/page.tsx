@@ -55,7 +55,7 @@ export default async function QuizHistoryPage({
         </div>
       </header>
 
-      <form className="bg-card grid gap-3 rounded-xl border p-4 sm:grid-cols-2 lg:grid-cols-5">
+      <form className="bg-card grid gap-3 rounded-xl border p-4 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto] xl:items-end">
         <div className="space-y-1.5">
           <Label htmlFor="quiz-history-subject">Subject</Label>
           <Select
@@ -146,8 +146,11 @@ export default async function QuizHistoryPage({
             </SelectContent>
           </Select>
         </div>
-        <Button type="submit" size="sm">
-          Apply filters
+        <Button
+          type="submit"
+          className="h-9 w-full sm:col-span-2 xl:col-span-1 xl:min-w-40"
+        >
+          Apply Filters
         </Button>
       </form>
 

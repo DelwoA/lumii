@@ -10,11 +10,15 @@ export type MasterySummary = {
   nextCorrectProbability: number | null;
   evidenceCount: number;
   source: "BKT" | "DEEP" | "BKT_FALLBACK" | null;
-  modelVersion: string | null;
   updatedAt: string | null;
   materialId: string | null;
   materialTitle: string | null;
 };
+
+export type RecommendationReason =
+  | "BUILD_COVERAGE"
+  | "STRENGTHEN_WEAKNESS"
+  | "SPACED_REVIEW";
 
 export type MasteryTrendPoint = {
   componentId: string;
@@ -29,4 +33,5 @@ export type MasteryOverview = {
   components: MasterySummary[];
   trends: MasteryTrendPoint[];
   recommendation: MasterySummary | null;
+  recommendationReason: RecommendationReason | null;
 };

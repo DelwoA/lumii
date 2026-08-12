@@ -85,7 +85,6 @@ export async function getQuizHistory(
       correctCount: entry.correctCount,
       durationSec: entry.durationSec,
       mode: entry.mode,
-      modelId: entry.modelId,
       completedAt: entry.completedAt.toISOString(),
       hasDetails: entry.questionAttempts.length > 0,
     })),
@@ -97,7 +96,6 @@ export async function getQuizHistory(
           correctCount: selected.correctCount,
           durationSec: selected.durationSec,
           mode: selected.mode,
-          modelId: selected.modelId,
           completedAt: selected.completedAt.toISOString(),
           questions: selected.questionAttempts.map((question) => ({
             id: question.id,

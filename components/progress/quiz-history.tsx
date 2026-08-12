@@ -34,7 +34,6 @@ type Entry = {
   correctCount: number;
   durationSec: number;
   mode: "QUICK" | "STANDARD";
-  modelId: string;
   completedAt: string;
   hasDetails: boolean;
 };
@@ -46,7 +45,6 @@ type Selected = {
   correctCount: number;
   durationSec: number;
   mode: "QUICK" | "STANDARD";
-  modelId: string;
   completedAt: string;
   questions: Array<{
     id: string;
@@ -243,7 +241,6 @@ export function QuizHistory({
                   <Clock3 className="size-3.5" />
                   {formatDuration(selected.durationSec)}
                 </span>
-                <span>{selected.modelId}</span>
               </div>
             </div>
             <div className="flex items-center gap-3">

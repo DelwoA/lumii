@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { BKT_MODEL_VERSION, estimateBkt } from "@/lib/mastery/bkt";
 import { predictNextCorrect } from "@/lib/mastery/inference";
+import { chooseMasteryRecommendation } from "@/lib/mastery/recommendation";
 import type { MasteryOverview, MasterySummary } from "@/lib/mastery/types";
 
 export async function recomputeMasteryForComponents(input: {
@@ -182,23 +183,14 @@ export async function getMasteryOverview(
       nextCorrectProbability: state?.nextCorrectProbability ?? null,
       evidenceCount: state?.evidenceCount ?? 0,
       source: state?.source ?? null,
-      modelVersion: state?.modelVersion ?? null,
       updatedAt: state?.updatedAt.toISOString() ?? null,
       materialId: component.materials[0]?.material.id ?? null,
       materialTitle: component.materials[0]?.material.title ?? null,
     };
   });
 
-  const practiced = summaries.filter((item) => item.evidenceCount >= 3);
-  const recommendation = practiced.length
-    ? practiced.reduce((weakest, item) =>
-        (item.masteryProbability ?? 1) < (weakest.masteryProbability ?? 1)
-          ? item
-          : weakest,
-      )
-    : (summaries.find((item) => item.evidenceCount === 0) ??
-      summaries[0] ??
-      null);
+  const { recommendation, recommendationReason } =
+    chooseMasteryRecommendation(summaries);
 
   return {
     components: summaries,
@@ -211,5 +203,6 @@ export async function getMasteryOverview(
       createdAt: snapshot.createdAt.toISOString(),
     })),
     recommendation,
+    recommendationReason,
   };
 }

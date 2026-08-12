@@ -242,18 +242,18 @@ export function QuizRunner({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button onClick={() => onGenerate("QUICK")} className="gap-2">
-            <Sparkles className="size-4" />
-            Start Quick Quiz (5)
+        <div className="grid w-full max-w-md gap-2 sm:grid-cols-2">
+          <Button onClick={() => onGenerate("STANDARD")} className="gap-2">
+            <Sparkles aria-hidden="true" className="size-4" />
+            Start Standard Quiz (10)
           </Button>
           <Button
-            onClick={() => onGenerate("STANDARD")}
+            onClick={() => onGenerate("QUICK")}
             variant="outline"
             className="gap-2"
           >
-            <Clock3 className="size-4" />
-            Start Standard Quiz (10)
+            <Clock3 aria-hidden="true" className="size-4" />
+            Start Quick Quiz (5)
           </Button>
         </div>
       </div>

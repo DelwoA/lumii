@@ -45,16 +45,20 @@ remaining mastery so displayed values cannot become stale.
 
 - `/progress` retains the existing overview and adds a concise mastery preview.
 - `/progress/mastery` shows an evidence-aware subject/topic/component heatmap,
-  current mastery and next-answer estimates, trends, and the weakest confirmed
-  component recommendation.
-- The recommendation deep-links to a material quiz focused on that component.
+  current mastery and next-answer estimates, and trends.
+- `/progress` recommends a practice-ready confirmed component and deep-links to
+  a material quiz focused on that component. Students can also search and choose
+  any other practice-ready concept, grouped by subject and topic.
 - `/progress/quizzes` provides paginated filters and full question-level review,
   including chosen/correct answers, explanations, component, and response time.
 - Legacy summary-only quiz completions remain readable.
 
-Unpracticed components are shown as insufficient evidence, not as zero mastery.
-Recommendations prefer practiced components with at least three observations;
-otherwise they guide the student to an unpracticed confirmed component.
+Unpractised components are shown as insufficient evidence, not as zero mastery.
+Recommendations first build coverage for components with fewer than three
+answers. Once every component has a baseline, they choose the weakest component
+outside a 24-hour review cooldown. If every component is inside that cooldown,
+the least recently practised component becomes the spaced-review suggestion.
+Concepts without an accessible linked material are never recommended.
 
 ## Data ownership and privacy
 

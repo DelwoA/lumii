@@ -25,6 +25,24 @@ function cellClass(component: MasterySummary) {
   return "bg-[#7e9d82] text-[#15271c] hover:bg-[#709176]";
 }
 
+function modelLabel(component: MasterySummary) {
+  if (component.source === "DEEP") {
+    return {
+      label: "Adaptive Learning Model",
+      description:
+        "An adaptive model estimates the chance of answering the next question correctly.",
+    };
+  }
+  if (component.source === "BKT" || component.source === "BKT_FALLBACK") {
+    return {
+      label: "BKT Learning Model",
+      description:
+        "Bayesian Knowledge Tracing estimates mastery from your quiz answers.",
+    };
+  }
+  return null;
+}
+
 function Trend({ points }: { points: MasteryOverview["trends"] }) {
   if (points.length < 2) {
     return (
@@ -143,6 +161,7 @@ export function MasteryMap({ overview }: { overview: MasteryOverview }) {
         (point) => point.componentId === selected.componentId,
       )
     : [];
+  const selectedModel = selected ? modelLabel(selected) : null;
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.75fr)]">
@@ -232,7 +251,7 @@ export function MasteryMap({ overview }: { overview: MasteryOverview }) {
                     : `${Math.round(selected.masteryProbability * 100)}%`}
                 </p>
                 <p className="text-muted-foreground mt-1 text-[11px]">
-                  BKT posterior
+                  Learning estimate
                 </p>
               </div>
               <div className="bg-muted/45 rounded-xl p-3">
@@ -247,10 +266,22 @@ export function MasteryMap({ overview }: { overview: MasteryOverview }) {
                 </p>
               </div>
             </div>
-            <p className="text-muted-foreground mt-3 text-xs">
-              Based on {selected.evidenceCount} answers ·{" "}
-              {selected.modelVersion ?? "Waiting for practice"}
-            </p>
+            <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <span>
+                {selected.evidenceCount
+                  ? `Based on ${selected.evidenceCount} answers`
+                  : "Waiting for practice"}
+              </span>
+              {selectedModel ? (
+                <span
+                  className="bg-muted rounded-full px-2 py-1"
+                  title={selectedModel.description}
+                  aria-label={`${selectedModel.label}: ${selectedModel.description}`}
+                >
+                  {selectedModel.label}
+                </span>
+              ) : null}
+            </div>
             {selected.materialId ? (
               <Button
                 nativeButton={false}
